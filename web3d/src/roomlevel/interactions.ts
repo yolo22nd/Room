@@ -190,7 +190,7 @@ export const interactionsMethods = {
     if (!read.includes(b.id)) read.push(b.id);
     if (read.length >= BOOKS.length) unlock('bookworm');
     if (b.id === 'conjuring' && learn(this.state, 'levitate')) ui.log('Chapter 3 teaches you to LIFT what you conjured. New spell: Levitate.', 'good');
-    sfx.open();
+    sfx.page();
     ui.dialog({ title: b.title, html: `<div class="book">${ui.escapeHtml(b.text)}</div>`, buttons: [{ label: 'Back to the shelf', onClick: () => this.use_shelf() }, { label: 'Close' }] });
   },
 
@@ -263,6 +263,7 @@ export const interactionsMethods = {
 
   use_pc(this: any) {
     const fl = this.state.flags;
+    sfx.type();
     const pcMenu = () => ui.dialog({
       title: '💻 WIZ-DOS 3.1',
       html: '<div class="pc-screen">Power button pressed.\nHome screen opened.\n\nC:\\&gt; _</div>',
@@ -362,7 +363,7 @@ export const interactionsMethods = {
     const e = this.entities.get(key);
     if (!e) return;
     this.state.flags[key] = open;
-    open ? sfx.open() : sfx.close();
+    open ? (sfx.open(), sfx.creak()) : sfx.close();
     this.anim = { obj: e.group.userData.pivot, prop: 'y', to: open ? -1.6 : 0 };
   },
 

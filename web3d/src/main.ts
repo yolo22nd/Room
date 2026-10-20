@@ -41,6 +41,7 @@ import { Peer } from './net';
 import { CoopLevel } from './coop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
+import { setIntensity, setSurface } from './audio';
 
 const CHAPTERS_KEY = 'room3d.chapters.v1';
 const chaptersDone = (): string[] => { try { return JSON.parse(localStorage.getItem(CHAPTERS_KEY) || '[]'); } catch (e) { return []; } };
@@ -1094,6 +1095,8 @@ function frame() {
       }
       player.update(dt);
       engine.level.update(dt);
+      setIntensity(engine.level.intensity ? engine.level.intensity() : 0);
+      setSurface(engine.level.surface ? engine.level.surface() : 'wood');
       if (engine.pendingSave) engine.autosave();
     } else if (engine.mode === 'play' || engine.mode === 'dead' || engine.mode === 'transition') {
       player.update(0);

@@ -524,6 +524,11 @@ export class RoomLevel {
     this.updateObjective();
   }
 
+  surface() {
+    const a = this.room.annexAt(this.player.pos.x, this.player.pos.z);
+    return a ? (a.type === 'hell' ? 'stone' : 'tile') : 'wood';
+  }
+
   updateObjective() {
     const s = this.state, fl = s.flags;
     let o;

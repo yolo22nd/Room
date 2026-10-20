@@ -150,9 +150,11 @@ export class LibraryLevel extends ChamberLevel {
   }
 
   floorY() { return 0; }
+  surface() { return this.water > 0.3 ? 'water' : 'tile'; }
   onLanded(obj) {
     // Archimedes: conjured furniture displaces water
     this.water += 0.18;
+    sfx.splash();
     ui.log(`The ${CATALOG[obj.type].name.toLowerCase()} splashes down. The water rises a little.`);
   }
   obstacles() { return this.water > 0.6 ? [] : super.obstacles(); }
@@ -316,7 +318,7 @@ export class ClockworkLevel extends ChamberLevel {
       if (k >= 1) { this.turning = null; this.k++; this.turnT = 0; }
     } else if (!this.jammed && this.phase === 'play') {
       this.turnT += dt;
-      if (this.turnT > 3.6 && Math.floor((this.turnT - dt) * 2) !== Math.floor(this.turnT * 2)) sfx.click();
+      if (Math.floor((this.turnT - dt) * 2) !== Math.floor(this.turnT * 2)) sfx.tick();
       if (this.turnT > 5) { this.turning = { from: this.angle, t: 0 }; sfx.thud(1.4); this.player.addShake(0.3); }
     }
     this.root.rotation.y = this.angle;

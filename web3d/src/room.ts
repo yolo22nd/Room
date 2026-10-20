@@ -70,13 +70,14 @@ export class Room {
     this.group = new THREE.Group(); scene.add(this.group);
     this.plugs = {};
     this.annexes = {};
-    this.wallMat = new THREE.MeshStandardMaterial({ map: repeatTex(wallpaper()), roughness: 0.9 });
+    const wp = repeatTex(wallpaper());
+    this.wallMat = new THREE.MeshStandardMaterial({ map: wp, bumpMap: wp, bumpScale: 0.8, roughness: 0.9 });
     this.build();
   }
 
   build() {
     const g = this.group;
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshStandardMaterial({ map: woodFloor(), roughness: 0.75 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshStandardMaterial({ map: woodFloor(), bumpMap: woodFloor(), bumpScale: 1.5, roughness: 0.75 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.userData.floor = true; g.add(floor);
     this.floor = floor;
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 0.4, HALF * 2 + 0.4), new THREE.MeshStandardMaterial({ map: plaster(), roughness: 1 }));

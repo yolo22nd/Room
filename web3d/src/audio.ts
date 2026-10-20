@@ -8,6 +8,10 @@ let master, musicBus, sfxBus;
 let noiseBuf = null;
 let ambience = null;
 let heartbeatTimer = 0;
+let intensity = 0;           // 0..1, set by the levels from danger
+let surface = 'wood';
+export function setIntensity(v) { intensity = Math.max(0, Math.min(1, v)); }
+export function setSurface(s) { surface = s; }
 let heartbeatRate = 0;
 const settings = { music: 0.6, sfx: 0.8 };
 
@@ -83,7 +87,23 @@ export const sfx = {
   key() { [0, 0.08, 0.16].forEach((d, i) => tone([784, 988, 1319][i], 0.3, { type: 'triangle', vol: 0.1, delay: d })); },
   lampOn() { tone(1200, 0.04, { type: 'square', vol: 0.05 }); noise(0.4, { vol: 0.04, freq: 2500, type: 'bandpass' }); },
   lampOff() { tone(700, 0.05, { type: 'square', vol: 0.05 }); },
-  step() { noise(0.07, { vol: 0.05, freq: 350 + Math.random() * 150 }); },
+  step() {
+    const r = Math.random();
+    switch (surface) {
+      case 'tile': noise(0.05, { vol: 0.06, freq: 2400 + r * 600, type: 'bandpass', q: 3 }); tone(900 + r * 200, 0.03, { type: 'triangle', vol: 0.015 }); break;
+      case 'stone': noise(0.08, { vol: 0.06, freq: 700 + r * 200, type: 'bandpass', q: 1.5 }); break;
+      case 'grass': noise(0.12, { vol: 0.04, freq: 3000 + r * 1500, type: 'highpass' }); break;
+      case 'water': noise(0.25, { vol: 0.07, freq: 900 + r * 400, type: 'bandpass', q: 0.8, sweep: 2 }); break;
+      case 'metal': tone(260 + r * 60, 0.12, { type: 'triangle', vol: 0.04 }); noise(0.05, { vol: 0.04, freq: 3000, type: 'highpass' }); break;
+      default: noise(0.07, { vol: 0.05, freq: 350 + r * 150 });
+    }
+  },
+  page() { noise(0.18, { vol: 0.06, freq: 4000, type: 'highpass', sweep: 0.5 }); noise(0.12, { vol: 0.04, freq: 2500, type: 'bandpass', delay: 0.12 }); },
+  type() { for (let i = 0; i < 6; i++) tone(1800 + Math.random() * 600, 0.02, { type: 'square', vol: 0.02, delay: i * 0.06 + Math.random() * 0.03 }); },
+  creak() { tone(180, 0.6, { type: 'sawtooth', vol: 0.03, slide: 1.6, attack: 0.1 }); noise(0.5, { vol: 0.03, freq: 600, q: 6, type: 'bandpass', sweep: 1.5 }); },
+  tick() { tone(2400, 0.02, { type: 'square', vol: 0.03 }); },
+  whoosh() { noise(0.35, { vol: 0.08, freq: 600, q: 1.5, type: 'bandpass', sweep: 4 }); },
+  splash() { noise(0.5, { vol: 0.12, freq: 1200, type: 'bandpass', q: 0.7, sweep: 0.4 }); },
   water(on) { cap('[running water]'); if (on) noise(0.6, { vol: 0.08, freq: 2500, type: 'bandpass', q: 0.6 }); },
   locked() { cap('[locked]'); tone(160, 0.08, { type: 'square', vol: 0.12 }); tone(140, 0.12, { type: 'square', vol: 0.12, delay: 0.1 }); },
   achievement() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.4, { type: 'triangle', vol: 0.09, delay: i * 0.09 })); },
@@ -165,8 +185,11 @@ export function playAmbience(kind) {
     let beat = 0;
     timer = setInterval(() => {
       // war drum
-      if (beat % 4 === 0 || beat % 4 === 3) tone(70, 0.35, { type: 'sine', vol: 0.22, slide: 0.5, bus: musicBus });
-      if (beat % 8 === 6) noise(0.15, { vol: 0.06, freq: 2000, type: 'highpass' });
+      const hot = intensity > 0.5;
+      if (beat % 4 === 0 || beat % 4 === 3 || (hot && beat % 2 === 1)) tone(70, 0.35, { type: 'sine', vol: 0.22, slide: 0.5, bus: musicBus });
+      if (beat % 8 === 6 || (intensity > 0.3 && beat % 4 === 2)) noise(0.15, { vol: 0.06, freq: 2000, type: 'highpass' });
+      if (intensity > 0.7 && beat % 2 === 0) tone([146.8, 155.6, 174.6, 155.6][(beat / 2) % 4 | 0], 0.25, { type: 'sawtooth', vol: 0.03, bus: musicBus });
+      filt.frequency.setTargetAtTime(500 + intensity * 1600, ctx.currentTime, 0.4);
       beat++;
     }, 300);
   } else if (kind === 'witch') {
@@ -177,7 +200,9 @@ export function playAmbience(kind) {
     timer = setInterval(() => {
       tone(notes[i % notes.length], 0.28, { type: 'square', vol: 0.025, bus: musicBus });
       if (i % 2 === 0) tone(73.4, 0.2, { type: 'sine', vol: 0.15, slide: 0.6, bus: musicBus });
-      if (i % 4 === 2) noise(0.06, { vol: 0.05, freq: 3000, type: 'highpass' });
+      if (i % 4 === 2 || (intensity > 0.5 && i % 2 === 1)) noise(0.06, { vol: 0.05, freq: 3000, type: 'highpass' });
+      if (intensity > 0.75 && i % 2 === 0) tone(notes[(i + 4) % notes.length] * 2, 0.12, { type: 'square', vol: 0.015, bus: musicBus });
+      filt.frequency.setTargetAtTime(1400 + intensity * 1800, ctx.currentTime, 0.4);
       i++;
     }, 220);
   } else if (kind === 'ending') {

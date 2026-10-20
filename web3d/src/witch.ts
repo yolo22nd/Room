@@ -214,6 +214,7 @@ export class WitchLevel extends BossLevel {
     m.scale.set(1.25, 1, 1); m.position.copy(this.camera.position).addScaledVector(dir, 0.6);
     this.scene.add(m);
     this.lemon = { obj: m, vel: dir.multiplyScalar(26), t: 0 };
+    sfx.whoosh();
     sfx.click();
   }
 
@@ -500,6 +501,9 @@ export class WitchLevel extends BossLevel {
     ui.setPrompt(null);
     ui.setBoss(this.phase === 'fight' ? { name: 'The Witch of Ember Hollow', frac: this.hp / this.maxHp } : null);
   }
+
+  intensity() { return this.phase === 'fight' ? 0.2 + (this.stage() - 1) * 0.3 + (this.state.hearts <= 1 ? 0.3 : 0) : 0; }
+  surface() { return 'grass'; }
 
   refreshHUD() {
     const s = this.state;

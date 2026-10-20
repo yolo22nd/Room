@@ -21,6 +21,14 @@ export class FX {
   }
 
   // Dust ring when something lands.
+  /** An expanding shockwave ring on the ground. */
+  ring(pos, size = 1.5, color = 0xd9c4ff) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.03, pos.z); m.scale.setScalar(0.2);
+    this.scene.add(m);
+    this.items.push({ obj: m, vel: new THREE.Vector3(), life: 0.5, max: 0.5, gravity: 0, grow: size });
+  }
+
   dust(pos, radius = 1) {
     this.burst(new THREE.Vector3(pos.x, 0.1, pos.z), { count: 22, color: '#9c8a78', speed: 2.2 * radius, life: 0.9, size: 0.6 * radius, up: 0.05, additive: false });
   }
@@ -44,6 +52,7 @@ export class FX {
       p.obj.position.addScaledVector(p.vel, dt);
       if (p.floor && p.obj.position.y < 0.04) { p.obj.position.y = 0.04; p.vel.multiplyScalar(0.5); p.vel.y = Math.abs(p.vel.y) * 0.3; }
       if (p.spin) { p.obj.rotation.x += p.spin.x * dt; p.obj.rotation.y += p.spin.y * dt; if (p.floor && p.obj.position.y <= 0.05) p.spin.multiplyScalar(0.9); }
+      if (p.grow) { const k = 1 - p.life / p.max; p.obj.scale.setScalar(0.2 + k * p.grow); p.obj.material.opacity = 0.7 * (1 - k); }
       if (p.sprite) {
         const k = p.life / p.max;
         p.obj.material.opacity = Math.max(0, k);
@@ -52,7 +61,7 @@ export class FX {
       }
       if (p.life <= 0) {
         this.scene.remove(p.obj);
-        if (p.sprite) p.obj.material.dispose(); else p.obj.geometry.dispose();
+        if (p.sprite || p.grow) p.obj.material.dispose(); if (!p.sprite) p.obj.geometry.dispose();
         this.items.splice(i, 1);
       }
     }

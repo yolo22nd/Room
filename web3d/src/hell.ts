@@ -99,7 +99,7 @@ export class HellLevel extends BossLevel {
 
     // basalt platform
     const bt = basalt().clone(); bt.needsUpdate = true; bt.repeat.set(5, 5);
-    const plat = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R, ARENA_R + 1.5, 3, 48), new THREE.MeshStandardMaterial({ map: bt, roughness: 0.95, emissive: 0x220500, emissiveMap: bt, emissiveIntensity: 0.6 }));
+    const plat = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R, ARENA_R + 1.5, 3, 48), new THREE.MeshStandardMaterial({ map: bt, roughness: 0.95, emissive: 0x220500, emissiveMap: bt, emissiveIntensity: 0.6, bumpMap: bt, bumpScale: 3 }));
     plat.position.set(ARENA_C.x, -1.5, ARENA_C.z); plat.receiveShadow = true; s.add(plat);
     this.platform = plat;
 
@@ -727,6 +727,12 @@ export class HellLevel extends BossLevel {
     ui.setObjective('Walk through the white door.');
     this.refreshHUD();
   }
+
+  intensity() {
+    if (this.phase === 'won' || this.phase === 'dying') return 0;
+    return 0.25 + (this.phase === 'exposed' ? 0.4 : 0) + (this.state.hearts <= 1 ? 0.3 : 0) + this.recoveries * 0.1;
+  }
+  surface() { return 'stone'; }
 
   refreshHUD() {
     const s = this.state;

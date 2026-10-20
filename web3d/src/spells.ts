@@ -49,6 +49,6 @@ export function castBlink(engine, fx, point) {
   fx.burst(p.pos.clone().setY(1), { count: 18, color: '#9fe8ff', size: 0.4, speed: 2 });
   p.pos.set(point.x, 0, point.z);
   fx.burst(new THREE.Vector3(point.x, 1, point.z), { count: 22, color: '#9fe8ff', size: 0.45, speed: 2.5 });
-  sfx.conjure();
+  sfx.whoosh();
   return true;
 }

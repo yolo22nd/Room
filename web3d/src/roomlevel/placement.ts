@@ -305,6 +305,7 @@ export const placementMethods = {
       if (d.t < 0.25) continue;
       d.vy -= 22 * dt;
       g.position.y += d.vy * dt;
+      if (Math.random() < 0.6) this.fx.burst(g.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.4, (Math.random() - 0.5) * 0.8)), { count: 1, color: '#d9c4ff', size: 0.12, life: 0.5, speed: 0.3 });
       if (g.position.y <= d.target) {
         g.position.y = d.target; g.scale.setScalar(1);
         this.drops.splice(i, 1);
@@ -319,7 +320,7 @@ export const placementMethods = {
     const dist = this.player.pos.distanceTo(new THREE.Vector3(pos.x, 0, pos.z));
     sfx.thud(kind === 'beyond' ? 2 : 1);
     this.player.addShake(Math.max(0, 1 - dist / 8) * (kind === 'beyond' ? 1 : 0.6));
-    if (kind === 'floor') this.fx.dust(pos, ent.type === 'cushion' || ent.type === 'chair' ? 0.6 : 1.1);
+    if (kind === 'floor') { this.fx.dust(pos, ent.type === 'cushion' || ent.type === 'chair' ? 0.6 : 1.1); this.fx.ring(pos, 1.6); }
     const where = kind === 'floor' ? 'the ' + CELL_NAMES[ent.slot] + ' of the room' : (kind === 'wall' ? 'the ' + SIDE_NAMES[ent.slot] + ' wall' : 'beyond the ' + SIDE_NAMES[ent.slot] + ' wall');
     ui.log(`Mysteriously, a ${CATALOG[ent.type].name.toLowerCase()} drops from the sky and lands exactly on ${where}.`);
 
