@@ -926,9 +926,11 @@ function showHelp() {
     title: 'How to play',
     html: `<p>You are a newbie wizard banished to a dark, empty room. Your one power: <b>anything you conjure falls from the sky</b>. Build the room, solve its secrets, and find your way to Hell — then out the other side.</p>
     ${touch ? `<p><b>Left stick</b> move · <b>drag</b> anywhere to look<br><b>Use</b> interact / confirm · <b>Cast</b> conjure / attack<br><b>Spells</b> open the spellbook (in Hell: switch spell)<br><b>Lamp</b> toggle the lamp · <b>Search</b> search the floor</p>`
-      : `<p><kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Mouse</kbd> look<br><kbd>E</kbd> interact · <kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast<br><kbd>R</kbd> rotate before casting · <kbd>Right-click</kbd> cancel<br><kbd>F</kbd> lamp · <kbd>G</kbd> search the floor · <kbd>X</kbd> put the lamp down<br><kbd>Space</kbd> stand up · <kbd>Esc</kbd> pause<br><kbd>/</kbd> classic command line (<i>create bed north</i>, <i>go sw</i>…)<br>In Hell: <kbd>1</kbd>/<kbd>2</kbd> or <kbd>Q</kbd> switch spell</p>`}
+      : `<p><kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Mouse</kbd> look<br><kbd>E</kbd> interact · <kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast<br><kbd>R</kbd> rotate before casting · <kbd>Right-click</kbd> cancel<br><kbd>F</kbd> lamp · <kbd>G</kbd> search the floor · <kbd>X</kbd> put the lamp down<br><kbd>Space</kbd> stand up · <kbd>Esc</kbd> pause<br><kbd>/</kbd> classic command line (<i>create bed north</i>, <i>go sw</i>…)<br><kbd>V</kbd> photo mode · in boss fights <kbd>1</kbd>–<kbd>4</kbd> or <kbd>Q</kbd> switch spell</p>`}
     <p class="muted">Controller: left stick move · right stick look · <b>A</b> use · <b>RT</b> cast · <b>Y</b> spells · <b>X</b> lamp · <b>LB</b> search · <b>LT</b> rotate · <b>B</b> stand/cancel · <b>Start</b> pause. D-pad + A in menus.</p>
-    <p class="muted">Tip: things land on whatever cell you're looking at. Don't look at your own feet.</p>`,
+    <p><b>Mana</b> (blue bar) pays for conjuring and refills on its own. Read, sleep and watch TV to learn <b>Levitate</b>, <b>Shrink</b> and <b>Blink</b>.</p>
+    <p><b>Modes:</b> 📖 Campaign replays chapters · ♾️ Endless builds a new room every time · 👥 Co-op swaps two codes with a friend · 🛠️ Editor lets you build and share your own room.</p>
+    <p class="muted">Tip: things land on whatever cell you're looking at. Don't look at your own feet. Key bindings, captions, reduced motion and colour-blind telegraphs are in Settings.</p>`,
     buttons: [{ label: 'Got it' }],
   });
 }
