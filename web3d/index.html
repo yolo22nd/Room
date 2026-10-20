@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07060a" />
+  <title>Room: Go To Hell</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="view"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="hearts"></div>
+      <div id="inventory"></div>
+      <div id="crosshair"></div>
+      <div id="prompt" class="hidden"></div>
+      <div id="log"></div>
+      <div id="cooldown" class="hidden"><div id="cooldown-fill"></div></div>
+      <div id="objective"></div>
+      <div id="vignette"></div>
+      <div id="flash"></div>
+    </div>
+
+    <!-- Touch controls -->
+    <div id="touch" class="hidden">
+      <div id="stick"><div id="stick-knob"></div></div>
+      <div id="touch-buttons">
+        <button data-act="use" class="tbtn big">Use</button>
+        <button data-act="cast" class="tbtn big accent">Cast</button>
+        <button data-act="book" class="tbtn">Spells</button>
+        <button data-act="lamp" class="tbtn">Lamp</button>
+        <button data-act="search" class="tbtn">Search</button>
+        <button data-act="pause" class="tbtn small">II</button>
+      </div>
+    </div>
+
+    <!-- Screens / dialogs -->
+    <div id="screen" class="hidden"></div>
+    <div id="dialog" class="hidden"></div>
+    <div id="toasts"></div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
