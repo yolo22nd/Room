@@ -58,6 +58,18 @@ export function setHearts(cur, max) {
   lastHearts = cur;
 }
 
+let manaEls = null;
+export function setMana(cur, max) {
+  if (!manaEls) manaEls = { box: document.getElementById('mana'), fill: document.getElementById('mana-fill'), t: document.getElementById('mana-t') };
+  if (cur === null) { manaEls.box.style.display = 'none'; return; }
+  manaEls.box.style.display = '';
+  manaEls.fill.style.width = (100 * cur / max) + '%';
+  const txt = `${Math.floor(cur)}/${max}`;
+  if (manaEls.t.textContent !== txt) manaEls.t.textContent = txt;
+}
+export function manaEmpty() {
+  const b = document.getElementById('mana'); b.classList.remove('empty'); void b.offsetWidth; b.classList.add('empty');
+}
 export function setInventory(items) {
   els.inventory.innerHTML = items.map(i => `<span class="inv">${i}</span>`).join('');
 }

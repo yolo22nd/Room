@@ -135,6 +135,20 @@ const engine = {
   roomState: null,
   saveT: 0,
 
+  spend(cost) {
+    const s = this.roomState;
+    if (!s) return true;
+    if (s.mode === 'editor') return true;
+    if (s.mana === undefined) { s.mana = s.maxMana = 100; }
+    if (s.mana < cost) {
+      sfx.locked(); ui.manaEmpty();
+      if (performance.now() - (this.manaMsgT || 0) > 2500) { this.manaMsgT = performance.now(); ui.log(`Not enough mana (needs ${cost}). It refills on its own.`, 'warn'); }
+      return false;
+    }
+    s.mana -= cost;
+    return true;
+  },
+
   split(name) {
     const sp = this.stats.splits || (this.stats.splits = {});
     if (sp[name] !== undefined) return;
@@ -696,6 +710,12 @@ function frame() {
         const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : '';
         ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
+      if (st) {
+        if (st.mana === undefined) st.mana = st.maxMana = 100;
+        const rate = (engine.level instanceof RoomLevel ? 10 : 16) * (st.mode === 'hard' ? 0.7 : 1);
+        st.mana = st.mode === 'editor' ? st.maxMana : Math.min(st.maxMana, st.mana + rate * dt);
+        ui.setMana(st.mode === 'editor' ? null : st.mana, st.maxMana);
+      }
       player.update(dt);
       engine.level.update(dt);
       if (engine.pendingSave) engine.autosave();

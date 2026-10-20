@@ -40,6 +40,7 @@ function actionFor(code) {
 }
 
 let canvasEl;
+let lockT = 0;
 const overlayOpen = () => !document.getElementById('dialog').classList.contains('hidden') || !document.getElementById('screen').classList.contains('hidden');
 
 export function initInput(canvas) {
@@ -66,10 +67,13 @@ export function initInput(canvas) {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   addEventListener('mousemove', (e) => {
     if (!input.locked) return;
+    // browsers can report one huge bogus delta right after the pointer is captured
+    if (performance.now() - lockT < 120 || Math.abs(e.movementX) > 300 || Math.abs(e.movementY) > 300) return;
     input.lookDX += e.movementX; input.lookDY += e.movementY;
   });
   document.addEventListener('pointerlockchange', () => {
     input.locked = document.pointerLockElement === canvasEl;
+    lockT = performance.now();
     if (!input.locked && input.enabled && !input.touch) input.actions.push('unlocked');
   });
 

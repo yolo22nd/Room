@@ -36,6 +36,13 @@ html, body {
 #hearts .heart.hit { animation: hit .45s; }
 @keyframes hit { 0%,100% { transform: scale(1);} 40% { transform: scale(1.5);} }
 
+#mana {
+  position: absolute; top: max(46px, calc(env(safe-area-inset-top) + 34px)); left: 16px; width: 150px; height: 9px;
+  background: rgba(0,0,0,.55); border: 1px solid rgba(110,170,255,.45); border-radius: 5px; overflow: hidden;
+}
+#mana-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2a6aff, #6ad0ff); transition: width .15s; }
+#mana-t { position: absolute; inset: 0; font: 600 8px var(--mono); color: #fff; text-align: center; line-height: 9px; text-shadow: 0 0 2px #000; }
+#mana.empty { animation: hit .4s; border-color: var(--danger); }
 #inventory {
   position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px;
   display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 60vw;
@@ -47,7 +54,7 @@ html, body {
 .inv b { color: var(--text); font-weight: 600; }
 
 #objective {
-  position: absolute; top: max(52px, calc(env(safe-area-inset-top) + 40px)); left: 16px;
+  position: absolute; top: max(62px, calc(env(safe-area-inset-top) + 50px)); left: 16px;
   font-size: 13px; color: var(--muted); max-width: 46vw;
   text-shadow: 0 1px 3px #000;
 }

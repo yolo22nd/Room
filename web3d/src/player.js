@@ -21,15 +21,18 @@ export class Player {
     this.bob = 0; this.stepTimer = 0;
     this.shake = 0;
     this.moving = false;
+    this.shrunk = 0;
   }
 
   place(x, z, yaw = this.yaw) { this.pos.set(x, 0, z); this.yaw = yaw; this.pitch = 0; this.stand(true); }
 
+  eye() { return this.shrunk > 0 ? 0.45 : EYE; }
+
   sit(what, height = 1.05) { this.sitting = what; this.targetHeight = height; }
   lie() { this.sitting = 'lying'; this.targetHeight = 0.7; }
   stand(instant = false) {
-    this.sitting = null; this.targetHeight = EYE;
-    if (instant) this.height = EYE;
+    this.sitting = null; this.targetHeight = this.eye();
+    if (instant) this.height = this.targetHeight;
   }
 
   addShake(a) { if (!A11Y.reducedMotion) this.shake = Math.max(this.shake, a); }
@@ -55,7 +58,7 @@ export class Player {
       if (why !== true) {
         if (this.onBlocked) this.onBlocked(why);
       } else {
-        const speed = this.speed * (mv.run ? 1.6 : 1);
+        const speed = this.speed * (mv.run ? 1.6 : 1) * (this.shrunk > 0 ? 0.75 : 1);
         const f = this.forward();
         const r = new THREE.Vector3(-f.z, 0, f.x);
         const d = f.multiplyScalar(mv.y).add(r.multiplyScalar(mv.x)).multiplyScalar(speed * dt);
@@ -67,6 +70,11 @@ export class Player {
       }
     }
 
+    if (this.shrunk > 0) {
+      this.shrunk = Math.max(0, this.shrunk - dt);
+      if (!this.sitting) this.targetHeight = this.eye();
+      if (this.shrunk === 0 && this.onGrow) this.onGrow();
+    }
     this.height += (this.targetHeight - this.height) * Math.min(1, dt * 6);
     const bobY = this.moving && !A11Y.reducedMotion ? Math.sin(this.bob) * 0.04 : 0;
     this.shake = Math.max(0, this.shake - dt * 1.8);

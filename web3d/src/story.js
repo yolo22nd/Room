@@ -17,7 +17,11 @@ A conjured object is not created. It is borrowed from somewhere above and droppe
 
 Chapter 2 — Fragile Things
 
-Glass, lamps and especially thinking-machines do not survive the fall onto a bare floor. Conjure something soft beneath them first. A cushion is traditional.`,
+Glass, lamps and especially thinking-machines do not survive the fall onto a bare floor. Conjure something soft beneath them first. A cushion is traditional.
+
+Chapter 3 — Second Thoughts
+
+What was conjured can be lifted again. Hold the thought of the object, raise it, and set it down where it should have gone in the first place. (Spell: Levitate.)`,
   },
   {
     id: 'bestiary', title: 'Bestiary of the Under-Realms',

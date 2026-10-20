@@ -3,6 +3,7 @@ import { COL } from './a11y.js';
 import { ring, glowSprite } from './textures.js';
 import { CATALOG, buildObject, box, cyl } from './models.js';
 import { FX } from './fx.js';
+import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells.js';
 import { RADIUS } from './player.js';
 import * as ui from './ui.js';
 import { sfx, playAmbience } from './audio.js';
@@ -160,13 +161,17 @@ export class WitchLevel {
   handleAction(a) {
     switch (a) {
       case 'cast': case 'use': case 'enter': this.cast(); break;
-      case 'book': case 'rotate': this.setSpell(this.spell === 'furniture' && this.state.flags.lemon ? 'lemon' : 'furniture'); break;
+      case 'book': case 'rotate': { const l = this.spellList(); this.setSpell(l[(l.indexOf(this.spell) + 1) % l.length]); break; }
       case 'n1': this.setSpell('furniture'); break;
       case 'n2': if (this.state.flags.lemon) this.setSpell('lemon'); break;
+      case 'n3': if (knows(this.state, 'blink')) this.setSpell('blink'); break;
+      case 'n4': case 'search': if (knows(this.state, 'shrink')) castShrink(this.engine); break;
     }
   }
+  spellList() { return ['furniture', ...(this.state.flags.lemon ? ['lemon'] : []), ...(knows(this.state, 'blink') ? ['blink'] : [])]; }
   setSpell(s) {
     if (this.spell === s) return;
+    if (s === 'blink') { this.spell = s; sfx.click(); ui.log('Spell: Blink — teleport where you aim.'); this.refreshHUD(); return; }
     this.spell = s; sfx.click();
     ui.log(s === 'lemon' ? 'You ready the lemon. It judges her now, instead of you.' : 'Spell: falling furniture.');
     this.refreshHUD();
@@ -191,7 +196,9 @@ export class WitchLevel {
     if (this.spell === 'lemon') { this.throwLemon(); return; }
     const p = this.aimPoint();
     if (!p) { ui.log('Aim at the ground.', 'warn'); return; }
+    if (this.spell === 'blink') { castBlink(this.engine, this.fx, p); return; }
     if (this.cooldown > 0) { sfx.locked(); return; }
+    if (!this.engine.spend(manaCost('furniture'))) return;
     this.cooldown = this.state.flags.wand ? 0.45 : 0.9;
     sfx.conjure();
     const types = this.ammo();
@@ -397,10 +404,10 @@ export class WitchLevel {
     const pd = Math.hypot(this.player.pos.x - d.target.x, this.player.pos.z - d.target.z);
     this.player.addShake(Math.max(0, 0.7 - pd / 12));
     if (!d.mine) {
-      if (pd < 1.5) this.hurt(1, d.type === 'pumpkin' ? 'squashed by a pumpkin' : 'hit by a flying cauldron');
+      if (pd < (this.player.shrunk > 0 ? 0.9 : 1.5)) this.hurt(1, d.type === 'pumpkin' ? 'squashed by a pumpkin' : 'hit by a flying cauldron');
       return;
     }
-    if (pd < 1.0) this.hurt(1, 'crushed by your own ' + (CATALOG[d.type] ? CATALOG[d.type].name.toLowerCase() : 'furniture'));
+    if (pd < (this.player.shrunk > 0 ? 0.6 : 1.0)) this.hurt(1, 'crushed by your own ' + (CATALOG[d.type] ? CATALOG[d.type].name.toLowerCase() : 'furniture'));
     // clones pop
     for (const c of [...this.clones]) {
       if (Math.hypot(c.obj.position.x - d.target.x, c.obj.position.z - d.target.z) < 1.8 && this.w.state === 'cast') {
@@ -490,7 +497,7 @@ export class WitchLevel {
     }
     this.updateDrops(dt);
     this.updateLemon(dt);
-    const p = this.phase === 'fight' && this.spell === 'furniture' ? this.aimPoint() : null;
+    const p = this.phase === 'fight' && this.spell !== 'lemon' ? this.aimPoint() : null;
     this.aimRing.visible = !!p;
     if (p) { this.aimRing.position.set(p.x, 0.04, p.z); this.aimRing.material.color.set(COL.mine); }
     ui.setPrompt(null);
@@ -502,6 +509,8 @@ export class WitchLevel {
     ui.setHearts(s.hearts, s.maxHearts);
     const inv = [`<b>${this.spell === 'furniture' ? '▶' : ''} 1</b> Furniture`];
     if (s.flags.lemon) inv.push(`<b>${this.spell === 'lemon' ? '▶' : ''} 2</b> 🍋 Lemon`);
+    if (knows(s, 'blink')) inv.push(`<b>${this.spell === 'blink' ? '▶' : ''} 3</b> ${SPELLS.blink.icon} Blink`);
+    if (knows(s, 'shrink')) inv.push(`<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Search)' : ''}`);
     if (this.shield) inv.push('🧥 <b>Cloak</b> ready');
     if (s.flags.wand) inv.push('🪄 <b>Ember Wand</b>');
     ui.setInventory(inv);

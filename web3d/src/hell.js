@@ -3,6 +3,7 @@ import { COL } from './a11y.js';
 import { basalt, lava, ring, glowSprite, portal } from './textures.js';
 import { CATALOG, buildObject, makeGiantNail } from './models.js';
 import { FX } from './fx.js';
+import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells.js';
 import { TaperTube } from './tube.js';
 import { loadPhysics, PhysicsWorld } from './physics.js';
 import { RADIUS } from './player.js';
@@ -262,12 +263,16 @@ export class HellLevel {
       case 'book': case 'rotate': this.toggleSpell(); break;
       case 'n1': this.setSpell('furniture'); break;
       case 'n2': this.setSpell('nail'); break;
+      case 'n3': if (knows(this.state, 'blink')) this.setSpell('blink'); break;
+      case 'n4': case 'search': if (knows(this.state, 'shrink')) castShrink(this.engine); break;
     }
   }
 
-  toggleSpell() { this.setSpell(this.spell === 'furniture' ? 'nail' : 'furniture'); }
+  spellList() { return ['furniture', 'nail', ...(knows(this.state, 'blink') ? ['blink'] : [])]; }
+  toggleSpell() { const l = this.spellList(); this.setSpell(l[(l.indexOf(this.spell) + 1) % l.length]); }
   setSpell(s) {
     if (this.spell === s) return;
+    if (s === 'blink') { this.spell = s; sfx.click(); ui.log('Spell: Blink — teleport where you aim.'); this.refreshHUD(); return; }
     this.spell = s; sfx.click();
     ui.log(s === 'nail' ? 'Spell: GIANT NAIL. It needs a worthy target.' : 'Spell: falling furniture.');
     this.refreshHUD();
@@ -296,8 +301,10 @@ export class HellLevel {
     }
     const p = this.aimPoint();
     if (!p) { ui.log('Aim at the ground.', 'warn'); return; }
+    if (this.spell === 'blink') { castBlink(this.engine, this.fx, p); return; }
     if (this.spell === 'nail') {
       if (this.nailCooldown > 0) { sfx.locked(); return; }
+      if (!this.engine.spend(manaCost('nail'))) return;
       this.nailCooldown = 5;
       sfx.conjure();
       const nail = makeGiantNail(0.9);
@@ -306,6 +313,7 @@ export class HellLevel {
       this.drops.push({ obj: nail, target: p.clone(), vy: -10, nail: true, marker: this.marker(p, 3.2, COL.nail) });
     } else {
       if (this.cooldown > 0) { sfx.locked(); return; }
+      if (!this.engine.spend(manaCost('furniture'))) return;
       this.cooldown = this.state.flags.wand ? 0.45 : 0.9;
       sfx.conjure();
       const types = this.ammoTypes();
@@ -440,7 +448,7 @@ export class HellLevel {
           this.fx.burst(T.target.clone().setY(0.3), { count: 14, color: '#ff7a30', speed: 4, life: 0.6, size: 0.4 });
           const d = Math.hypot(this.player.pos.x - T.target.x, this.player.pos.z - T.target.z);
           this.player.addShake(Math.max(0.25, 1.2 - d / 10));
-          if (d < 1.9) this.hurt(1, 'flattened by a tentacle');
+          if (d < (this.player.shrunk > 0 ? 1.1 : 1.9)) this.hurt(1, 'flattened by a tentacle');
         }
         break;
       case 'down':
@@ -485,7 +493,7 @@ export class HellLevel {
     this.fx.dust(d.target, 1.2);
     const pd = Math.hypot(this.player.pos.x - d.target.x, this.player.pos.z - d.target.z);
     this.player.addShake(Math.max(0, 0.6 - pd / 15));
-    if (pd < 1.0) this.hurt(1, 'crushed by your own ' + CATALOG[d.type].name.toLowerCase());
+    if (pd < (this.player.shrunk > 0 ? 0.6 : 1.0)) this.hurt(1, 'crushed by your own ' + CATALOG[d.type].name.toLowerCase());
     if (pd < 1.9) {
       // shove the player clear so the camera never ends up inside the furniture
       const away = new THREE.Vector3(this.player.pos.x - d.target.x, 0, this.player.pos.z - d.target.z);
@@ -609,7 +617,7 @@ export class HellLevel {
         this.projectiles.splice(i, 1);
         sfx.thud(1.5);
         this.fx.burst(p.to.clone().setY(0.3), { count: 24, color: '#ff6a20', speed: 5, size: 0.6, life: 0.7 });
-        if (Math.hypot(this.player.pos.x - p.to.x, this.player.pos.z - p.to.z) < 1.7) this.hurt(1, 'roasted by a fireball');
+        if (Math.hypot(this.player.pos.x - p.to.x, this.player.pos.z - p.to.z) < (this.player.shrunk > 0 ? 1.0 : 1.7)) this.hurt(1, 'roasted by a fireball');
       }
     }
   }
@@ -739,6 +747,8 @@ export class HellLevel {
       `<b>${this.spell === 'nail' ? '▶' : ''} 2</b> Giant Nail`,
       `📌 Pinned <b>${this.pins}/${this.pinsNeeded}</b>`,
     ];
+    if (knows(s, 'blink')) inv.splice(2, 0, `<b>${this.spell === 'blink' ? '▶' : ''} 3</b> ${SPELLS.blink.icon} Blink`);
+    if (knows(s, 'shrink')) inv.splice(3, 0, `<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Search)' : ''}`);
     if (s.shoes !== 'none') inv.push(`👟 <b>${s.shoes}</b>`);
     if (this.shield) inv.push('🧥 <b>Cloak</b> ready');
     if (s.flags.wand) inv.push('🪄 <b>Ember Wand</b>');

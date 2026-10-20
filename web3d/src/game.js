@@ -6,6 +6,7 @@ import {
 } from './room.js';
 import { CATALOG, buildObject, buildDoor, buildTV, makeLantern, makeGhostKey, buildJunk } from './models.js';
 import { loadPhysics, PhysicsWorld } from './physics.js';
+import { SPELLS, manaCost, learn, knows, castShrink, castBlink } from './spells.js';
 import { ring } from './textures.js';
 import { RADIUS } from './player.js';
 import { FX } from './fx.js';
@@ -108,6 +109,13 @@ export class RoomLevel {
     this.player.walkable = (x, z, ox, oz) => this.walkable(x, z, ox, oz);
     this.player.canMove = () => this.canMove();
     this.player.onBlocked = (why) => this.blocked(why);
+    this.player.onGrow = () => {
+      ui.log('You grow back to your normal size.');
+      for (const R of this.obstacles()) {
+        const p = this.player.pos;
+        if (p.x > R.minX - RADIUS && p.x < R.maxX + RADIUS && p.z > R.minZ - RADIUS && p.z < R.maxZ + RADIUS) { this.pushOut(R); break; }
+      }
+    };
 
     this.restore();
   }
@@ -263,13 +271,25 @@ export class RoomLevel {
       for (const [type, c] of Object.entries(CATALOG)) {
         if (c.kind !== k) continue;
         const placed = c.kind === 'junk' ? false : type === 'door' ? SIDES.some(s => this.entities.has('door_' + s)) : (type === 'lamp' ? !!this.state.lamp : this.entities.has(type));
-        html += `<button class="spell${placed ? ' placed' : ''}" data-type="${type}"><span class="ico">${c.icon}</span><span class="nm">${c.name}</span>${placed ? '<span class="ty">placed</span>' : ''}</button>`;
+        html += `<button class="spell${placed ? ' placed' : ''}" data-type="${type}"><span class="ico">${c.icon}</span><span class="nm">${c.name}</span><span class="ty">${placed ? 'placed · ' : ''}${this.state.mode === 'editor' ? 'free' : manaCost(type) + ' mana'}</span></button>`;
       }
       html += '</div>';
     }
     if (this.state.flags.nailKnown) html += '<div class="section-label">Forbidden</div><div class="spell-grid"><button class="spell locked" data-type="nail"><span class="ico">📌</span><span class="nm">Giant Nail</span><span class="ty">too big for a room</span></button></div>';
+    html += '<div class="section-label">Spells</div><div class="spell-grid">';
+    for (const [id, sp] of Object.entries(SPELLS)) {
+      const k = knows(this.state, id);
+      html += `<button class="spell${k ? '' : ' locked'}" data-spell="${id}" title="${k ? sp.desc : sp.learn}"><span class="ico">${k ? sp.icon : '❔'}</span><span class="nm">${k ? sp.name : '???'}</span><span class="ty">${k ? manaCost(id) + ' mana' : sp.learn}</span></button>`;
+    }
+    html += '</div>';
     const box = ui.dialog({ title: '📖 Spellbook', html, wide: true });
-    box.querySelectorAll('.spell').forEach(b => b.addEventListener('click', () => {
+    box.querySelectorAll('[data-spell]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.spell;
+      if (!knows(this.state, id)) { ui.log(`You haven't learned that spell yet. Hint: ${SPELLS[id].learn}`, 'lore'); return; }
+      ui.closeDialog();
+      this.castSpell(id);
+    }));
+    box.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
       const t = b.dataset.type;
       if (t === 'nail') { ui.log('The Giant Nail is far too big to conjure in here. It needs a worthy target.', 'warn'); return; }
       ui.closeDialog();
@@ -277,12 +297,60 @@ export class RoomLevel {
     }));
   }
 
+  castSpell(id) {
+    if (id === 'shrink') { castShrink(this.engine); return; }
+    if (id === 'levitate') {
+      this.cancelPlacing();
+      this.lev = true;
+      ui.log('Levitate: look at a piece of furniture and cast to lift it.');
+      return;
+    }
+    if (id === 'blink') this.startPlacing('blink');
+  }
+
+  levCast() {
+    const f = this.findFocus();
+    const e = f && this.entities.get(f.owner);
+    if (!e || CATALOG[e.type].kind !== 'floor') { sfx.locked(); ui.log('Aim at a piece of furniture to lift it.', 'warn'); return; }
+    if (e.type === 'cushion' && this.entityAt(e.slot, 'pc')) { ui.log('The PC is sitting on that cushion. Lift the PC first.', 'warn'); return; }
+    if (!this.engine.spend(manaCost('levitate'))) return;
+    this.lev = false;
+    sfx.whisper();
+    this.startPlacing(e.type);
+    this.placing.moveKey = e.key;
+    this.placing.rot = e.rot;
+    ui.log(`The ${CATALOG[e.type].name.toLowerCase()} floats up. Aim at a new spot and cast to set it down.`);
+  }
+
+  moveEntity(key, slot, rot) {
+    const e = this.entities.get(key);
+    const fl = this.state.flags;
+    const keep = { open: fl.showcaseOpen, smashed: fl.showcaseSmashed };
+    this.fx.burst(e.group.position.clone().setY(1), { count: 14, color: '#9fe8ff', size: 0.35 });
+    this.despawn(key);
+    this.spawn(e.type, slot, rot);
+    if (e.type === 'showcase') {
+      fl.showcaseOpen = keep.open; fl.showcaseSmashed = keep.smashed;
+      if (keep.open) this.openShowcaseVisual(true);
+      if (keep.smashed) this.hideShowcaseGlass(this.entities.get('showcase'));
+    }
+  }
+
   startPlacing(type) {
     this.cancelPlacing();
+    this.lev = false;
     sfx.click();
     if (type === 'lamp') { this.conjureLamp(); return; }
-    const kind = CATALOG[type].kind;
+    const kind = type === 'blink' ? 'blink' : CATALOG[type].kind;
     let ghost;
+    if (type === 'blink') {
+      ghost = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshBasicMaterial({ map: ring(), color: 0x9fe8ff, transparent: true, depthWrite: false }));
+      ghost.rotation.x = -Math.PI / 2;
+      this.scene.add(ghost);
+      this.placing = { type, kind: 'blink', ghost, rot: 0, target: null };
+      ui.log('Blink: aim at the floor and cast to teleport there.');
+      return;
+    }
     if (kind === 'junk') {
       ghost = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: ring(), color: COL.mine, transparent: true, depthWrite: false }));
       ghost.rotation.x = -Math.PI / 2;
@@ -317,7 +385,7 @@ export class RoomLevel {
   aimTarget() {
     const kind = this.placing.kind;
     const cam = this.camera;
-    if (kind === 'floor' || kind === 'junk') {
+    if (kind === 'floor' || kind === 'junk' || kind === 'blink') {
       const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
       let p;
       if (dir.y < -0.05) {
@@ -326,6 +394,7 @@ export class RoomLevel {
       } else {
         p = cam.position.clone().addScaledVector(new THREE.Vector3(dir.x, 0, dir.z).normalize(), 2.5);
       }
+      if (kind === 'blink') { p.y = 0; return p; }
       p.x = Math.max(-HALF + 0.01, Math.min(HALF - 0.01, p.x));
       p.z = Math.max(-HALF + 0.01, Math.min(HALF - 0.01, p.z));
       if (kind === 'junk') { p.x = Math.max(-HALF + 0.4, Math.min(HALF - 0.4, p.x)); p.z = Math.max(-HALF + 0.4, Math.min(HALF - 0.4, p.z)); p.y = 0; return p; }
@@ -339,6 +408,15 @@ export class RoomLevel {
 
   updatePlacing() {
     const pl = this.placing;
+    if (pl.kind === 'blink') {
+      pl.target = this.aimTarget();
+      pl.ghost.position.set(pl.target.x, 0.03, pl.target.z);
+      const d = Math.hypot(pl.target.x - this.player.pos.x, pl.target.z - this.player.pos.z);
+      const ok = d <= 8 && this.walkable(pl.target.x, pl.target.z, pl.target.x, pl.target.z);
+      pl.ghost.material.color.set(ok ? 0x9fe8ff : 0xff4d5e);
+      ui.setPrompt(ok ? `<kbd>${this.engine.touch ? 'Cast' : 'Click'}</kbd>Blink here` : '<span style="color:var(--danger)">Can\'t blink there</span>');
+      return;
+    }
     if (pl.kind === 'junk') {
       pl.target = this.aimTarget();
       pl.ghost.position.set(pl.target.x, 0.02, pl.target.z);
@@ -402,6 +480,14 @@ export class RoomLevel {
   castPlacing() {
     const pl = this.placing;
     if (!pl || !pl.target) return;
+    if (pl.kind === 'blink') { if (castBlink(this.engine, this.fx, pl.target)) this.cancelPlacing(); return; }
+    if (pl.moveKey) {
+      const err = this.placementError(pl.type, pl.target);
+      if (err) { sfx.locked(); ui.log(err, 'warn'); return; }
+      this.moveEntity(pl.moveKey, pl.target, pl.rot);
+      this.cancelPlacing();
+      return;
+    }
     if (pl.kind === 'junk') {
       if (this.room.annexAt(this.player.pos.x, this.player.pos.z)) { sfx.locked(); return; }
       if (this.time - (this.junkT || -9) < 0.25) return;
@@ -416,6 +502,7 @@ export class RoomLevel {
     if (this.state.mode === 'custom') { ui.log('No conjuring in someone else\'s room.', 'warn'); return false; }
     const err = this.placementError(type, slot);
     if (err) { sfx.locked(); ui.log(err, 'warn'); return false; }
+    if (!this.engine.spend(manaCost(type))) return false;
     const key = this.keyFor(type, slot);
     if (this.entities.has(key)) {
       ui.log(`Your old ${CATALOG[type].name.toLowerCase()} vanishes in a puff of smoke.`);
@@ -469,6 +556,7 @@ export class RoomLevel {
   }
 
   async dropJunk(type, p) {
+    if (!this.engine.spend(manaCost(type))) return;
     sfx.conjure();
     const ph = await this.ensurePhysics();
     const c = CATALOG[type];
@@ -604,8 +692,9 @@ export class RoomLevel {
   }
 
   conjureLamp() {
-    sfx.conjure();
     if (this.state.lamp === 'hand') { ui.log('You already hold a lamp.'); return; }
+    if (!this.engine.spend(manaCost('lamp'))) return;
+    sfx.conjure();
     this.state.lamp = 'hand';
     this.placeLantern();
     this.fx.burst(this.camera.position.clone().add(this.player.forward().multiplyScalar(1.4)).setY(this.camera.position.y + 0.6), { count: 14, color: '#ffd080', size: 0.12, speed: 1.2, up: -0.4 });
@@ -723,7 +812,9 @@ export class RoomLevel {
 
   obstacles() {
     const list = [];
-    for (const e of this.entities.values()) if (e.rect) list.push(e.rect);
+    const tiny = this.player.shrunk > 0;
+    const SOLID = new Set(['closet', 'shelf', 'showcase', 'shoerack', 'cushion', 'sofa']);
+    for (const e of this.entities.values()) if (e.rect && (!tiny || SOLID.has(e.type))) list.push(e.rect);
     for (const s of SIDES) { const a = this.room.annexes[s]; if (a) list.push(...a.obstacles); }
     return list;
   }
@@ -843,6 +934,7 @@ export class RoomLevel {
   }
 
   use() {
+    if (this.lev) { this.levCast(); return; }
     if (this.placing) { this.engine.touch ? this.rotatePlacing() : this.castPlacing(); return; }
     const f = this.focus;
     if (!f) { if (this.player.sitting) { this.player.stand(); ui.log('You stood up.'); } return; }
@@ -885,7 +977,9 @@ export class RoomLevel {
     sfx.whisper();
     ui.story(DREAM, { clear: true }).then(() => {
       this.sitOn(type, ent);
-      unlock('dream'); this.engine.autosave();
+      unlock('dream');
+      if (learn(this.state, 'shrink')) ui.log('In the dream you were tiny, and it felt natural. New spell: Shrink.', 'good');
+      this.engine.autosave();
     });
   }
 
@@ -947,7 +1041,9 @@ export class RoomLevel {
       this.tvOn = false;
       this.state.flags.tvSeen = true;
       tv.group.userData.screenMesh.material.emissiveIntensity = 0.15;
-      unlock('couch'); this.engine.autosave();
+      unlock('couch');
+      if (learn(this.state, 'blink')) ui.log('You noticed how she flickers between frames. New spell: Blink.', 'good');
+      this.engine.autosave();
     });
   }
 
@@ -985,6 +1081,7 @@ export class RoomLevel {
     const read = this.state.flags.books;
     if (!read.includes(b.id)) read.push(b.id);
     if (read.length >= BOOKS.length) unlock('bookworm');
+    if (b.id === 'conjuring' && learn(this.state, 'levitate')) ui.log('Chapter 3 teaches you to LIFT what you conjured. New spell: Levitate.', 'good');
     sfx.open();
     ui.dialog({ title: b.title, html: `<div class="book">${ui.escapeHtml(b.text)}</div>`, buttons: [{ label: 'Back to the shelf', onClick: () => this.use_shelf() }, { label: 'Close' }] });
   }
@@ -1219,6 +1316,19 @@ export class RoomLevel {
     const pc = this.entities.get('pc');
     const here = cellAt(this.player.pos.x, this.player.pos.z);
     ui.log('You start searching, placing your hands on the floor around you...');
+    const bed = this.entities.get('bed');
+    if (this.player.shrunk > 0 && bed && !fl.crystal) {
+      const r = bed.rect, p = this.player.pos;
+      if (p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ) {
+        setTimeout(() => {
+          fl.crystal = true; sfx.key();
+          const s = this.state; s.maxMana = (s.maxMana || 100) + 25; s.mana = s.maxMana;
+          ui.log('Under the bed, at mouse height, a glowing blue crystal is wedged between the floorboards. (+25 max mana)', 'good');
+          unlock('crystal'); this.refreshHUD(); this.engine.autosave();
+        }, 700);
+        return;
+      }
+    }
     setTimeout(() => {
       const keyHere = fl.keyCell ? (fl.pcWon && fl.keyCell === here) : (pc && pc.slot === here);
       if (keyHere && !fl.showKey) {
@@ -1285,9 +1395,9 @@ export class RoomLevel {
   handleAction(a) {
     switch (a) {
       case 'use': case 'enter': this.use(); break;
-      case 'cast': if (this.placing) this.castPlacing(); break;
-      case 'book': this.openSpellbook(); break;
-      case 'cancel': this.cancelPlacing(); break;
+      case 'cast': if (this.placing) this.castPlacing(); else if (this.lev) this.levCast(); break;
+      case 'book': if (this.lev) { this.lev = false; break; } this.openSpellbook(); break;
+      case 'cancel': this.cancelPlacing(); this.lev = false; break;
       case 'rotate': this.rotatePlacing(); break;
       case 'lamp': this.toggleLamp(); break;
       case 'search': this.search(); break;
@@ -1377,7 +1487,11 @@ export class RoomLevel {
 
     // placement ghost or interaction focus
     if (this.placing) this.updatePlacing();
-    else {
+    else if (this.lev) {
+      const f = this.findFocus();
+      const e = f && this.entities.get(f.owner);
+      ui.setPrompt(e && CATALOG[e.type].kind === 'floor' ? `<kbd>${this.engine.touch ? 'Cast' : 'Click'}</kbd>Lift the ${CATALOG[e.type].name.toLowerCase()}` : 'Levitate: look at a piece of furniture');
+    } else {
       this.focus = ui.isDialogOpen() ? null : this.findFocus();
       if (this.focus) ui.setPrompt(`<kbd>${this.engine.touch ? 'Use' : 'E'}</kbd>${this.focusLabel(this.focus)}`);
       else ui.setPrompt(null);
