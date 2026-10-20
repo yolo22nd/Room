@@ -152,7 +152,7 @@ export class ChamberLevel {
     if (this.placing) { this.cancelPlacing(); return; }
     const types = Object.keys(CATALOG).filter(t => CATALOG[t].kind === 'floor');
     let html = `<p class="muted">${this.cfg.gravity > 0 ? 'Gravity is upside down here: things fall to the CEILING. Aim up.' : 'Aim at a floor cell and cast.'}</p><div class="spell-grid">`;
-    for (const t of types) html += `<button class="spell" data-type="${t}"><span class="ico">${CATALOG[t].icon}</span><span class="nm">${CATALOG[t].name}</span><span class="ty">${manaCost(t)} mana</span></button>`;
+    for (const t of types) html += `<button class="spell" data-type="${t}"><span class="ico">${CATALOG[t].icon}</span><span class="nm">${CATALOG[t].name}</span><span class="ty">${Math.round(manaCost(t) * (this.state.costMul || 1))} mana</span></button>`;
     html += '</div><div class="section-label">Spells</div><div class="spell-grid">';
     for (const [id, sp] of Object.entries<any>(SPELLS)) {
       if (id === 'levitate' || !knows(this.state, id)) continue;

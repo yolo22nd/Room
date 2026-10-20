@@ -118,7 +118,7 @@ export class LibraryLevel extends ChamberLevel {
     this.waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshStandardMaterial({ color: 0x2a6a9a, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2, emissive: 0x0a2030, depthWrite: false, side: THREE.DoubleSide }));
     this.waterMesh.rotation.x = -Math.PI / 2; this.root.add(this.waterMesh);
     // six glowing books, low ones near the start
-    const spots = [[3.2, 5.6, 0.45], [-3.2, 5.6, 1.1], [5.6, 0.2, 2.0], [-5.6, 0.2, 3.0], [2.5, -5.6, 4.1], [-2.5, -5.6, 5.3]];
+    const spots = [[3.2, 5.6, 0.45], [-3.2, 5.6, 1.1], [5.6, 0.2, 2.0], [-5.6, 0.2, 3.6], [2.5, -5.6, 4.6], [-2.5, -5.6, 5.3]];
     this.books = spots.map(([x, z, y]) => {
       const g = new THREE.Group(); g.position.set(x, y, z); this.root.add(g);
       const mat = new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xffa020, emissiveIntensity: 1.6 });
@@ -138,7 +138,7 @@ export class LibraryLevel extends ChamberLevel {
   takeBook(book) {
     if (book.got || book.lost) return;
     const eye = this.player.pos.clone(); eye.y += this.player.height;
-    if (eye.distanceTo(book.g.position) > 2.6) { ui.log('Out of reach. (The water will lift you... eventually.)', 'warn'); return; }
+    if (eye.distanceTo(book.g.position) > 2.0) { ui.log('Out of reach. (The water will lift you... eventually.)', 'warn'); return; }
     book.got = true; book.g.visible = false;
     sfx.pickup();
     const n = this.books.filter(b => b.got).length;
@@ -211,9 +211,10 @@ export class ClockworkLevel extends ChamberLevel {
     this.chapterId = 'clockwork';
     this.addCrystalBall(3.6, 3.6);
     this.intro = '"Lesson three. My tower never stops turning. Unless, of course, something gets stuck in the gears."';
-    this.angle = 0; this.k = 0; this.turnT = 0; this.turning = null;
+    // starts a quarter turn off, so the door has to come round to the bridge
+    this.angle = Math.PI / 2; this.k = 1; this.turnT = 0; this.turning = null;
     this.jammed = null;
-    this.start = [0, 3, Math.PI];
+    this.start = [0, 3, Math.PI / 2];
     // a doorway in the north wall
     this.root.remove(this.walls.n);
     const h = this.cfg.h;

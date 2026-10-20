@@ -262,7 +262,7 @@ const engine: any = {
     if (r.depth === 10) unlock('rogue10');
     releaseLock();
     const rnd = seededRandom(r.seed + ':up:' + r.depth);
-    const offer = [...UPGRADES].sort(() => rnd() - 0.5).slice(0, 3);
+    const offer = UPGRADES.filter(u => !(u.id === 'nose' && r.nose) && !(u.id === 'umbrella' && r.umbrella) && !(u.id === 'heal' && r.hearts >= r.maxHearts)).sort(() => rnd() - 0.5).slice(0, 3);
     ui.dialog({
       title: `Room ${r.depth} cleared!`,
       html: `<p>Choose one upgrade for the rest of the run. (❤️ ${r.hearts}/${r.maxHearts})</p>`,
@@ -355,7 +355,7 @@ const engine: any = {
     const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel || this.level instanceof ChamberLevel;
     ui.closeDialog(true);
     ui.screen(`<div class="title-wrap"><h1 style="font-size:64px">You died</h1><p class="sub">${ui.escapeHtml(why || 'it happens')}</p>
-      <div class="actions"><button class="btn primary" id="retry">${inHell ? 'Retry the fight' : 'Load last save'}</button><button class="btn" id="totitle">Back to title</button></div></div>`);
+      <div class="actions"><button class="btn primary" id="retry">${inHell ? (this.level instanceof ChamberLevel ? 'Retry the lesson' : 'Retry the fight') : 'Load last save'}</button><button class="btn" id="totitle">Back to title</button></div></div>`);
     document.getElementById('retry').onclick = () => { sfx.click(); continueGame(true); };
     document.getElementById('totitle').onclick = () => { sfx.click(); showTitle(); };
   },
@@ -393,6 +393,7 @@ const engine: any = {
       { from: [0, 2.5, 8], to: [0, 1.62, 13], lookFrom: [0, 6, -15], lookTo: [0, 4, -15], dur: 2.4, text: 'KRAKEN 2.0' },
     ]);
     hell.phase = 'fight';
+    hell.refreshHUD();
   },
 
   async ending() {

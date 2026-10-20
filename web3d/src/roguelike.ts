@@ -57,7 +57,7 @@ export class RogueRoom extends ChamberLevel {
     if (mod === 'cramped') this.start = [this.cellCenter([1, 1]).x, size / 2 - 1.2, 0];
     this.chapterId = 'rogue';
     this.addExit('n', 'Exit door');
-    this.hazardT = 6;
+    this.hazardT = Math.max(1.5, 6 - run.depth * 0.4);
     const cells = [];
     for (let c = 0; c < this.cfg.cols; c++) for (let r = 0; r < this.cfg.rows; r++) cells.push([c, r]);
     // keep the start cell (south middle) free

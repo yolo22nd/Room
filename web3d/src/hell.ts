@@ -209,12 +209,12 @@ export class HellLevel extends BossLevel {
     this.player.speed = 4.2;
     playAmbience('hell');
     ui.setVignette('');
-    this.refreshHUD();
     const sh = this.state.shoes;
     if (sh === 'shoes') { unlock('dresscode'); ui.log('Your sturdy shoes hiss against the hot stone. Good call.', 'good'); }
     else if (sh === 'slippers') ui.log('Your slippers start to smoke. They won\'t last long.', 'warn');
     else { unlock('hotfeet'); ui.log('The floor is HOT. "Please wear shoes before going out of the house," you remember. Too late.', 'warn'); }
     this.phase = 'fight';
+    this.refreshHUD();
     setTimeout(() => sfx.roar(), 300);
     ui.log('Aim at the ground and cast to drop furniture from the sky. Pin its arms while they rest on the stone!', 'lore');
   }
@@ -543,8 +543,13 @@ export class HellLevel extends BossLevel {
   }
 
   headGroundPoint() {
-    const p = new THREE.Vector3();
-    this.eye.getWorldPosition(p);
+    const p = new THREE.Vector3(), h = this.head;
+    if (this.phase !== 'exposed') { this.eye.getWorldPosition(p); return new THREE.Vector3(p.x, 0, p.z); }
+    // judge against the settled slump pose, not wherever the head is mid-motion
+    const y = h.position.y, z = h.position.z, rx = h.rotation.x;
+    h.position.y = 4.5; h.position.z = 6.5; h.rotation.x = 0.5;
+    h.updateMatrixWorld(true); this.eye.getWorldPosition(p);
+    h.position.y = y; h.position.z = z; h.rotation.x = rx; h.updateMatrixWorld(true);
     return new THREE.Vector3(p.x, 0, p.z);
   }
 
