@@ -572,24 +572,30 @@ function showTitle() {
   const cont = hasSave();
   const code = roomCodeFromHash();
   const shared = code ? decodeRoom(code) : null;
-  ui.screen(`<div class="title-wrap">
-      <h1>ROOM</h1>
-      <div class="sub">a wizard · a room · a way through hell</div>
-      <div class="actions">
-        ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
-        ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
-        <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
-        <button class="btn" id="t-endless">♾️ Endless rooms</button>
-        <button class="btn" id="t-coop">👥 Co-op</button>
-        <button class="btn" id="t-campaign">📖 Campaign (${chaptersDone().length + lessonsDone().length}/6 chapters)</button>
-        ${lessonsUnlocked() ? `<button class="btn" id="t-lessons">📜 Part 4: The Three Lessons (${lessonsDone().length}/3)</button>` : ''}
-        <button class="btn" id="t-editor">🛠️ Room editor</button>
-        <button class="btn" id="t-help">How to play</button>
-        <button class="btn" id="t-ach">Achievements (${unlockedCount()}/${ACHIEVEMENTS.length})</button>
-        <button class="btn" id="t-endings">Endings (${seenEndings().length}/${ENDING_IDS.length})</button>
-        <button class="btn" id="t-settings">Settings</button>
+  const tile = (id, icon, label, sub = '') => `<button class="tile" id="${id}"><span class="ti">${icon}</span><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</button>`;
+  ui.screen(`<div class="title-wrap title-main">
+      <div class="title-head">
+        <h1>ROOM</h1>
+        <div class="sub">a wizard · a room · a way through hell</div>
       </div>
-      <div class="foot">A 3D reimagining of “Room”, a Java command-line game.<br>Headphones recommended.</div>
+      <div class="title-menu">
+        <div class="actions">
+          ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
+          ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
+          <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
+          <button class="btn" id="t-campaign">📖 Campaign <span class="k" style="float:right">${chaptersDone().length + lessonsDone().length}/6</span></button>
+        </div>
+        <div class="tile-grid">
+          ${tile('t-endless', '♾️', 'Endless')}
+          ${tile('t-coop', '👥', 'Co-op')}
+          ${tile('t-editor', '🛠️', 'Editor')}
+          ${tile('t-ach', '🏆', 'Awards', `${unlockedCount()}/${ACHIEVEMENTS.length}`)}
+          ${tile('t-endings', '🎬', 'Endings', `${seenEndings().length}/${ENDING_IDS.length}`)}
+          ${tile('t-settings', '⚙️', 'Settings')}
+          ${tile('t-help', '❓', 'How to play')}
+        </div>
+      </div>
+      <div class="foot">A 3D reimagining of “Room”, a Java command-line game. Headphones recommended.</div>
     </div>`, { clear: true });
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = () => { initAudio(); sfx.click(); fn(); }; };
   on('t-continue', () => continueGame());

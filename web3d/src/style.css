@@ -206,6 +206,23 @@ button.btn .k { font-family: var(--mono); color: var(--muted); font-size: 12px; 
 }
 .title-wrap .sub { color: var(--muted); margin: 10px 0 28px; letter-spacing: .3em; text-transform: uppercase; font-size: 13px; }
 .title-wrap .actions { max-width: 320px; margin: 0 auto; }
+.tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 420px; margin: 12px auto 0; }
+.tile {
+  font: 12px var(--font); color: var(--text); background: rgba(31,23,48,.85); border: 1px solid #3d2f55; border-radius: 12px;
+  padding: 10px 4px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all .12s;
+}
+.tile:hover, .tile:focus-visible { border-color: var(--accent); background: #2c2043; outline: none; }
+.tile .ti { font-size: 20px; }
+.tile small { color: var(--muted); font-size: 10px; }
+@media (max-width: 420px) { .tile-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-height: 520px) and (min-width: 600px) {
+  .title-main { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; max-width: 900px; }
+  .title-main h1 { font-size: 56px; }
+  .title-main .sub { margin-bottom: 0; }
+  .title-main .foot { grid-column: 1 / -1; margin-top: 4px; }
+  .title-main .actions { gap: 6px; }
+  .title-main .actions .btn { padding: 8px 12px; }
+}
 .title-wrap .foot { margin-top: 26px; color: #6d6280; font-size: 12px; line-height: 1.6; }
 .story { font-size: clamp(17px, 2.6vw, 22px); line-height: 1.7; max-width: 640px; text-align: center; white-space: pre-line; }
 .story em { color: var(--ember); font-style: normal; font-weight: 700; }
