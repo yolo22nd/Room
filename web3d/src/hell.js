@@ -49,6 +49,7 @@ export class HellLevel {
     this.burnT = 0; this.slipperT = 0;
     this.projectiles = [];
     this.hard = state.mode === 'hard';
+    this.shield = state.flags.cloak ? 1 : 0;
     this.pinsNeeded = this.hard ? 5 : 4;
     this.build();
 
@@ -231,7 +232,7 @@ export class HellLevel {
       this.drops.push({ obj: nail, target: p.clone(), vy: -10, nail: true, marker: this.marker(p, 3.2, 0xffe0a0) });
     } else {
       if (this.cooldown > 0) { sfx.locked(); return; }
-      this.cooldown = 0.9;
+      this.cooldown = this.state.flags.wand ? 0.45 : 0.9;
       sfx.conjure();
       const types = this.ammoTypes();
       const type = types[Math.floor(Math.random() * types.length)];
@@ -529,6 +530,12 @@ export class HellLevel {
 
   hurt(n, why) {
     if (this.phase === 'dying' || this.phase === 'won') return;
+    if (this.shield > 0) {
+      this.shield--; sfx.close(); ui.flash('#b58cff', 0.4, 400);
+      ui.log('Your cloak flares and absorbs the blow!', 'good');
+      this.refreshHUD();
+      return;
+    }
     this.hitsTaken++;
     this.engine.damage(n, why);
   }
@@ -543,7 +550,7 @@ export class HellLevel {
     this.fx.update(dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.nailCooldown = Math.max(0, this.nailCooldown - dt);
-    ui.setCooldown(this.spell === 'nail' ? this.nailCooldown / 5 : this.cooldown / 0.9);
+    ui.setCooldown(this.spell === 'nail' ? this.nailCooldown / 5 : this.cooldown / (this.state.flags.wand ? 0.45 : 0.9));
 
     // head motion
     const exposed = this.phase === 'exposed';
@@ -646,6 +653,8 @@ export class HellLevel {
       `📌 Pinned <b>${this.pins}/${this.pinsNeeded}</b>`,
     ];
     if (s.shoes !== 'none') inv.push(`👟 <b>${s.shoes}</b>`);
+    if (this.shield) inv.push('🧥 <b>Cloak</b> ready');
+    if (s.flags.wand) inv.push('🪄 <b>Ember Wand</b>');
     ui.setInventory(inv);
     if (this.phase === 'fight') ui.setObjective(`Pin ${this.pinsNeeded} arms with falling furniture while they rest on the stone (${this.pins}/${this.pinsNeeded}).`);
     if (this.phase === 'exposed') ui.setObjective('Drop the GIANT NAIL right under its eye!');

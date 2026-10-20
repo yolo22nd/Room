@@ -10,7 +10,7 @@ import { glowSprite } from './textures.js';
 import * as ui from './ui.js';
 import { sfx, playAmbience, setHeartbeat } from './audio.js';
 import { unlock } from './save.js';
-import { BOOKS, DREAM, TV_BROADCAST, KITCHEN_NOTE, MIRROR_LINES, PC_SURF, PC_MAIL } from './story.js';
+import { BOOKS, DREAM, TV_BROADCAST, KITCHEN_NOTE, MIRROR_LINES, PC_SURF, PC_MAIL, WITCH_DIARY } from './story.js';
 
 const HUG = new Set(['bed', 'sofa', 'shelf', 'closet', 'shoerack', 'showcase', 'table']);
 const SEATS = { bed: 0.95, sofa: 1.0, chair: 1.1, cushion: 0.75, dine: 1.05, table: 1.1 };
@@ -558,6 +558,8 @@ export class RoomLevel {
       }
     }
     if (ent.type === 'showcase' && this.state.flags.hellKeyTaken) ent.group.userData.hkey.visible = false;
+    const floorCount = [...this.entities.values()].filter(e => CATALOG[e.type].kind === 'floor').length;
+    if (floorCount >= 12) unlock('designer');
     this.refreshHUD();
     this.engine.autosave();
   }
@@ -834,11 +836,24 @@ export class RoomLevel {
   }
 
   use_shelf() {
-    const read = this.state.flags.books;
-    this.menu('Bookshelf', `There are plenty of (${BOOKS.length}) books in here to read.`, BOOKS.map(b => ({
-      label: `${read.includes(b.id) ? '✓ ' : ''}${b.title}`,
-      onClick: () => this.readBook(b),
-    })));
+    const fl = this.state.flags;
+    const read = fl.books;
+    this.menu('Bookshelf', `There are plenty of (${BOOKS.length}) books in here to read.`, [
+      ...BOOKS.map(b => ({ label: `${read.includes(b.id) ? '✓ ' : ''}${b.title}`, onClick: () => this.readBook(b) })),
+      read.includes('diary') && !fl.wand ? { label: '📕 Pull the crooked book', onClick: () => this.pullBook() } : null,
+    ]);
+  }
+  pullBook() {
+    const fl = this.state.flags;
+    fl.wand = true; sfx.key();
+    const e = this.entities.get('shelf');
+    if (e) this.fx.burst(e.group.position.clone().setY(1.3), { count: 20, color: '#ff9a50', size: 0.25 });
+    ui.dialog({ title: 'A hidden compartment', html: '<p>The crooked book is a lever. Something clicks, and a slim drawer slides out of the shelf.</p><p>Inside lies a wand of black wood with a glowing ember core.</p><p class="muted">Found: <b>Ember Wand</b> — your falling-furniture spell recharges twice as fast in battle.</p>', buttons: [{ label: 'Take it' }] });
+    this.secretFound(); this.refreshHUD(); this.engine.autosave();
+  }
+  secretFound() {
+    const fl = this.state.flags;
+    if (fl.wand && fl.cloak && fl.diary) unlock('secrets');
   }
   readBook(b) {
     const read = this.state.flags.books;
@@ -853,7 +868,16 @@ export class RoomLevel {
     this.menu('Closet', 'You can change your clothes here, or view yourself in the mirror.', [
       { label: 'Change clothes', onClick: () => { if (this.state.clothes === 'new') ui.log('You are already in a new pair of clothes.'); else { this.state.clothes = 'new'; sfx.open(); ui.log('You wear a new pair of clothes. Very wizardly.'); } } },
       { label: 'Look in the mirror', onClick: () => { fl.mirror = (fl.mirror || 0) + 1; ui.log(MIRROR_LINES[Math.min(fl.mirror - 1, MIRROR_LINES.length - 1)]); unlock('fabulous'); } },
+      this.state.clothes === 'new' && !fl.cloak ? { label: 'Knock on the back panel', onClick: () => this.knockPanel() } : null,
     ]);
+  }
+  knockPanel() {
+    const fl = this.state.flags;
+    fl.knocks = (fl.knocks || 0) + 1;
+    if (!fl.books.includes('witch') && fl.knocks < 3) { sfx.close(); ui.log('Knock knock. The panel sounds... hollow? You\'re not sure what you\'re looking for.'); return; }
+    fl.cloak = true; sfx.key();
+    ui.dialog({ title: 'A false back', html: '<p>The panel behind your old clothes is hollow. It swings open on a hidden hinge.</p><p>Hanging inside: a midnight-purple cloak that smells faintly of smoke and roses.</p><p class="muted">Found: <b>Witch\'s Cloak</b> — absorbs the first hit you take in each boss fight.</p>', buttons: [{ label: 'Wear it' }] });
+    this.secretFound(); this.refreshHUD(); this.engine.autosave();
   }
 
   use_shoerack() {
@@ -912,10 +936,31 @@ export class RoomLevel {
         { label: '🎮 Play a game', onClick: () => this.rps() },
         { label: '🌐 Surf', onClick: () => ui.dialog({ title: 'WizNet', html: `<div class="pc-screen">${PC_SURF}</div>`, buttons: [{ label: 'Back', onClick: pcMenu }] }) },
         { label: '✉️ Messages', onClick: () => ui.dialog({ title: 'Mail', html: `<div class="pc-screen">${PC_MAIL}</div>`, buttons: [{ label: 'Back', onClick: pcMenu }] }) },
+        { label: this.state.flags.diary ? '📓 vault.exe (open)' : '🔒 vault.exe', onClick: () => this.vault(pcMenu) },
         { label: 'Shut down', cls: 'danger', onClick: () => ui.log('PC closed.') },
       ],
     });
     pcMenu();
+  }
+
+  vault(back) {
+    const fl = this.state.flags;
+    if (fl.diary) { ui.dialog({ title: 'Vault', html: `<div class="book">${ui.escapeHtml(WITCH_DIARY)}</div>`, buttons: [{ label: 'Back', onClick: back }, { label: 'Close' }] }); return; }
+    const box = ui.dialog({
+      title: '🔒 vault.exe',
+      html: `<div class="pc-screen">PROPERTY OF THE WITCH.\nENTER 3-DIGIT CODE:</div><input id="vcode" inputmode="numeric" maxlength="3" autocomplete="off" style="margin-top:10px;width:100%;font:22px var(--mono);letter-spacing:.4em;text-align:center;padding:8px;border-radius:8px;border:1px solid #1d4d2a;background:#031207;color:#59ff8a">`,
+      buttons: [{ label: 'Enter', cls: 'primary', keep: true, onClick: () => check() }, { label: 'Back', onClick: back }],
+    });
+    const inp = box.querySelector('#vcode');
+    setTimeout(() => inp.focus(), 30);
+    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') check(); });
+    const check = () => {
+      if (inp.value.replace(/\D/g, '') === '556') {
+        fl.diary = true; sfx.key(); unlock('vault');
+        ui.dialog({ title: 'ACCESS GRANTED', html: `<div class="book">${ui.escapeHtml(WITCH_DIARY)}</div>`, buttons: [{ label: 'Close the vault' }] });
+        this.secretFound(); this.refreshHUD(); this.engine.autosave();
+      } else { sfx.locked(); inp.value = ''; inp.placeholder = 'WRONG'; }
+    };
   }
 
   rps() {
@@ -1023,7 +1068,12 @@ export class RoomLevel {
     this.refreshHUD(); this.engine.autosave();
   }
   use_knives() { ui.log('You reach for the knives. A voice in your head says: "NO."', 'lore'); }
-  use_fridge() { sfx.open(); ui.log('Empty, except for a single, judgmental lemon.'); }
+  use_fridge() {
+    const fl = this.state.flags;
+    sfx.open();
+    if (fl.lemon) { ui.log('Empty. Even the lemon left you.'); return; }
+    this.menu('Fridge', 'Empty, except for a single, judgmental lemon.', [{ label: 'Take the lemon', onClick: () => { fl.lemon = true; sfx.pickup(); ui.log('You pocket the lemon. It judges you from inside your pocket.'); this.refreshHUD(); this.engine.autosave(); } }]);
+  }
   use_portal() { this.enterPortal(); }
 
   annexOfType(type) { for (const s of SIDES) if (this.room.annexes[s] && this.room.annexes[s].type === type) return this.room.annexes[s]; return null; }
@@ -1053,6 +1103,7 @@ export class RoomLevel {
   enterPortal() {
     if (this.enteringHell) return;
     this.enteringHell = true;
+    if (this.engine.stats.conjured <= 8) unlock('minimalist');
     this.engine.enterHell();
   }
 
@@ -1193,6 +1244,10 @@ export class RoomLevel {
     if (fl.hellKeyTaken) inv.push('🗝️ <b>H key</b>');
     if (fl.nailKnown) inv.push('📌 <b>Giant Nail</b> spell');
     if (fl.stewCooked && !fl.stewEaten) inv.push('🍲 <b>Ember stew</b>');
+    if (fl.wand) inv.push('🪄 <b>Ember Wand</b>');
+    if (fl.cloak) inv.push('🧥 <b>Cloak</b>');
+    if (fl.diary) inv.push('📓 <b>Diary</b>');
+    if (fl.lemon) inv.push('🍋 <b>Lemon</b>');
     if (s.shoes !== 'none') inv.push(`👟 <b>${s.shoes}</b>`);
     ui.setInventory(inv);
   }

@@ -37,6 +37,8 @@ Day 3: Conjured a PC. It shattered. Conjured a cushion, then the PC on top of it
 
 Day 9: Beat it. It told me a secret: "search the floor where I stand". Found something I could not see. A key? It opens glass.
 
+Day 5: One book on the shelf is not a book. It sits crooked, like it wants to be pulled.
+
 Day 10: The door beside hell locks itself. It wants a different key. One with a letter on it.
 
 Day 11: Going in. Wearing shoes. Floor looked hot.`,
@@ -45,7 +47,9 @@ Day 11: Going in. Wearing shoes. Floor looked hot.`,
     id: 'witch', title: 'The Witch of Ember Hollow',
     text: `She was the youngest witch ever to banish a dragon, and the oldest to still be undefeated. She is merciful, which her enemies find very irritating.
 
-She keeps exactly one television channel — her own — and broadcasts to every room she has ever built. Prisoners report that she only appears when they are sitting down and paying attention.`,
+She keeps exactly one television channel — her own — and broadcasts to every room she has ever built. Prisoners report that she only appears when they are sitting down and paying attention.
+
+She never travels without her cloak, and she hides it the way every witch does: behind her clothes, behind a panel that sounds hollow.`,
   },
   {
     id: 'rps', title: 'Rock, Paper, Scissors: A Treatise',
@@ -80,7 +84,8 @@ export const TV_BROADCAST = [
   'If you are watching this, you are sitting down. Good. Prisoners who stand never listen.',
   'You will want to leave. Of course. The way out is through hell, and hell has a doorman with too many arms.',
   'A hint, since I am merciful: the last kraken died under a falling nail. You will find its picture somewhere glass. Learn the shape, and you can conjure it.',
-  'And no, you may not use the kitchen. Not because of the knives. Well. Mostly because of the knives. *static*',
+  'And no, you may not use the kitchen. Not because of the knives. Well. Mostly because of the knives.',
+  'Oh, and stop trying to guess my vault code. It is the number of arms on a kraken, twice, then the number of the beast\'s last digit. Nobody will ever figure that out. *static*',
 ];
 
 export const KITCHEN_NOTE = `A sticky note on the stove, in the witch's handwriting:
@@ -113,6 +118,18 @@ export const PC_SURF = `WIZNET EXPLORER v0.9
 > ERROR 666: You are beyond hell. No signal.
 
 Try again after escaping.`;
+
+export const WITCH_DIARY = `THE WITCH'S DIARY (private!!)
+
+Monday: banished a newbie. Felt sorry for them. Gave them a room. Am I going soft?
+
+Tuesday: the newbie has conjured fourteen chairs. Fourteen.
+
+Wednesday: if they ever beat Kraken 2.0 they will want a rematch. They always want a rematch.
+
+Note to self: NOBODY must ever learn about my one weakness.
+
+(It's lemons. I cannot stand lemons. The smell alone makes me drop my broom.)`;
 
 export const PC_MAIL = `INBOX (1)
 
