@@ -349,6 +349,7 @@ export class RoomLevel {
     this.lampLight.visible = on;
     if (this.lantern.userData.glass) this.lantern.userData.glass.emissiveIntensity = on ? 2.2 : 0.05;
     this.hemi.intensity = on ? 0.35 : 0.06;
+    this.room.setCandles(on);
     this.scene.fog.far = on ? 18 : 7;
     const scared = this.state.lamp !== 'hand' || !on;
     ui.setVignette(scared ? 'fear' : '');

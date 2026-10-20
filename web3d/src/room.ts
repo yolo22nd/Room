@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { woodFloor, wallpaper, plaster, tiles, brick, portal, glowSprite } from './textures';
+import { glowSprite as glow2 } from './textures';
 import { box, cyl, materials as M } from './models';
 import { screenCanvas } from './textures';
 
@@ -155,6 +156,31 @@ export class Room {
     }, 0.9, 1.2);
     const s2 = new THREE.Group(); s2.applyMatrix4(sideMatrix('s')); witch.position.set(2.9, 1.75, 0.03); s2.add(witch); g.add(s2);
     // eyes: painted sockets with real eyeballs that track the camera
+    // a window onto the void beyond hell (east wall, off-centre so the wall slot stays free)
+    const winGroup = new THREE.Group(); winGroup.applyMatrix4(sideMatrix('e')); g.add(winGroup);
+    const frame = new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.7 });
+    const wx = -2.9, wy = 1.75;
+    for (const [w, h, x, y] of [[1.5, 0.1, 0, 0.75], [1.5, 0.1, 0, -0.75], [0.1, 1.6, -0.7, 0], [0.1, 1.6, 0.7, 0], [1.4, 0.05, 0, 0], [0.05, 1.5, 0, 0]]) {
+      const b = box(w, h, 0.08, frame, wx + x, wy + y, 0.05, winGroup); b.castShadow = false;
+    }
+    const voidTex = portal(270, 230).clone(); voidTex.needsUpdate = true;
+    this.voidMat = new THREE.MeshBasicMaterial({ map: voidTex, color: 0x8a70c0 });
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.45), this.voidMat);
+    pane.position.set(wx, wy, 0.02); winGroup.add(pane);
+    this.voidTex = voidTex;
+    const sill = box(1.7, 0.06, 0.25, frame, wx, wy - 0.82, 0.1, winGroup); sill.castShadow = false;
+    const winLight = new THREE.PointLight(0x8a70ff, 1.2, 4, 2); winLight.position.set(wx, wy, 0.6); winGroup.add(winLight);
+    // unlit wall candles that catch fire when the lamp is lit
+    this.candles = [];
+    const wax = new THREE.MeshStandardMaterial({ color: 0xf0e6cc, roughness: 0.6 });
+    for (const [side, x] of [['n', 1.7], ['n', -1.2], ['w', 2.6], ['w', -2.6], ['s', -1.2]] as [string, number][]) {
+      const grp = new THREE.Group(); grp.applyMatrix4(sideMatrix(side)); g.add(grp);
+      const bracket = box(0.06, 0.06, 0.18, M.brass, x, 1.95, 0.09, grp); bracket.castShadow = false;
+      cyl(0.03, 0.03, 0.16, wax, x, 2.06, 0.17, grp, 8).castShadow = false;
+      const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow2('#ffb040'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      flame.scale.set(0.12, 0.2, 1); flame.position.set(x, 2.2, 0.17); flame.visible = false; grp.add(flame);
+      this.candles.push(flame);
+    }
     this.paintEyes = [];
     const white = new THREE.MeshStandardMaterial({ color: 0xf4efe0, roughness: 0.3 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x103010 });
@@ -293,7 +319,11 @@ export class Room {
     return null;
   }
 
+  setCandles(on) { (this.candles || []).forEach(c => { c.visible = on; }); }
+
   update(dt, t, camPos) {
+    if (this.voidTex) { this.voidTex.center.set(0.5, 0.5); this.voidTex.rotation += dt * 0.08; }
+    if (this.candles) this.candles.forEach((c, i) => { if (c.visible) c.scale.set(0.12 + Math.sin(t * 9 + i) * 0.015, 0.2 + Math.sin(t * 13 + i * 2) * 0.03, 1); });
     if (camPos && this.paintEyes) {
       const w = new THREE.Vector3();
       for (const e of this.paintEyes) { e.getWorldPosition(w); e.lookAt(camPos.x, camPos.y, camPos.z); }
