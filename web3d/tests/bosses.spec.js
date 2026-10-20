@@ -17,6 +17,7 @@ test('kraken: pins expose the head, the nail wins, the exit offers the rematch',
   await page.waitForFunction(() => ['dying', 'won'].includes(window.__room.engine.level.phase), null, { timeout: 90_000 });
   await page.waitForFunction(() => window.__room.engine.level.phase === 'won', null, { timeout: 90_000 });
   await level(page, (L, R) => R.engine.player.pos.set(L.exit.position.x, 0, L.exit.position.z));
+  await page.waitForSelector('#screen .story', { timeout: 30_000 });
   await advanceStory(page, 10);
   await expect(page.locator('.dialog h2')).toContainText('Rematch');
   expect(errors).toEqual([]);

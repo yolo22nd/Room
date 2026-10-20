@@ -43,7 +43,7 @@ test('act 1 puzzle chain: lamp, cushion+PC, rock-paper-scissors, keys, fossil', 
   await page.waitForFunction(() => window.__room.engine.level.state.flags.showKey === true);
 
   // showcase: open with the invisible key, take the H key, learn the nail
-  await level(page, (L) => L.conjureAt('showcase', 'e'));
+  await level(page, (L, R) => { R.engine.roomState.mana = 100; L.conjureAt('showcase', 'e'); });
   await page.waitForFunction(() => window.__room.engine.level.drops.length === 0);
   await level(page, (L) => L.use_showcase());
   await page.click('button:has-text("Take the key")');
@@ -54,7 +54,7 @@ test('act 1 puzzle chain: lamp, cushion+PC, rock-paper-scissors, keys, fossil', 
   expect(fl.hellKeyTaken && fl.nailKnown && fl.showcaseOpen).toBe(true);
 
   // the door beside hell locks itself without... and opens with the H key
-  await level(page, (L) => { L.conjureAt('hell', 'n'); L.conjureAt('door', 'n'); });
+  await level(page, (L, R) => { R.engine.roomState.mana = 100; L.conjureAt('hell', 'n'); L.conjureAt('door', 'n'); });
   await page.waitForFunction(() => window.__room.engine.level.drops.length === 0);
   await level(page, (L) => L.use_door({ key: 'door_n' }));
   expect(await level(page, (L) => L.state.flags.door_n)).toBe(true);
