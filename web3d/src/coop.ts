@@ -4,6 +4,7 @@ import { CATALOG, cyl } from './models';
 import { glowSprite } from './textures';
 import * as ui from './ui';
 import { sfx } from './audio';
+import { unlock } from './save';
 
 // Co-op: two wizards, one room. The host is authoritative for objects,
 // runes, plates and the exit; both sides send their own position.
@@ -35,6 +36,8 @@ export class CoopLevel extends ChamberLevel {
     this.partner.position.set(this.host ? 2 : -2, 0, 3);
     this.scene.add(this.partner);
     this.partnerTarget = { x: this.partner.position.x, z: this.partner.position.z, yaw: 0 };
+    const hi5 = { label: 'High five!', fn: () => this.highFive() };
+    this.partner.traverse((o: any) => { if (o.isMesh) { o.userData.use = hi5; this.usables.push(o); } });
     this.sendT = 0;
     // two pressure plates on opposite sides
     this.plates = [[0, 1], [3, 1]].map(cell => {
@@ -85,6 +88,7 @@ export class CoopLevel extends ChamberLevel {
       case 'plates': if (!this.host) this.showPlates(m.pressed); break;
       case 'done': this.finish(); break;
       case 'bye': this.partnerLeft(); break;
+      case 'hi5': this.theirHi5 = performance.now(); this.checkHi5(); break;
     }
   }
 
@@ -105,6 +109,22 @@ export class CoopLevel extends ChamberLevel {
   showPlates(pressed) {
     this.plates.forEach((p, i) => { p.pressed = pressed[i]; p.plate.material.emissive.set(pressed[i] ? 0x2a8a50 : 0x000000); });
     this.refreshHUD();
+  }
+
+  highFive() {
+    this.myHi5 = performance.now();
+    this.peer.send({ t: 'hi5' });
+    ui.log('You raise your hand for a high five...');
+    this.checkHi5();
+  }
+  checkHi5() {
+    if (this.myHi5 && this.theirHi5 && Math.abs(this.myHi5 - this.theirHi5) < 2000) {
+      this.myHi5 = this.theirHi5 = 0;
+      sfx.win();
+      this.fx.burst(this.partner.position.clone().setY(1.6), { count: 24, color: '#ffe14a', size: 0.4, speed: 3 });
+      ui.log('HIGH FIVE! ✋', 'good');
+      unlock('highfive');
+    } else if (this.theirHi5 && !this.myHi5) ui.log('Your partner wants a high five! (Look at them and use.)', 'lore');
   }
 
   // ---------------------------------------------------------- frame

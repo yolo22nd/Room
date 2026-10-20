@@ -448,6 +448,25 @@ export class RoomLevel {
     }
     if (this.lampLight.visible) this.lampLight.intensity = 14 + Math.sin(this.time * 13) * 0.4 + (Math.random() - 0.5) * 0.6;
 
+    // the witch's portrait wakes up in the dark
+    if (!(this.state.lamp && this.state.lampOn) && this.room.portrait && this.state.mode !== 'custom') {
+      const pp = new THREE.Vector3(); this.room.portrait.getWorldPosition(pp);
+      const toP = pp.clone().sub(this.camera.position);
+      const d = toP.length(); toP.normalize();
+      const look = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      const watching = d < 5 && look.dot(toP) > 0.93;
+      this.room.pupilMat.color.set(watching ? 0x7bff7b : 0x103010);
+      if (watching) {
+        this.portraitT = (this.portraitT || 0) + dt;
+        if (this.portraitT > 1.5 && !this.state.flags.portrait) {
+          this.state.flags.portrait = true;
+          sfx.whisper();
+          ui.log('The portrait\'s eyes glow green. A whisper: "...lemons. Never tell anyone about the lemons..."', 'lore');
+          unlock('portrait');
+        }
+      } else this.portraitT = 0;
+    } else if (this.room.pupilMat) this.room.pupilMat.color.set(0x103010);
+
     // invisible key glimmer: only in the dark, only before it's found
     const pc = this.entities.get('pc');
     const show = pc && !this.state.flags.showKey && !(this.state.lamp && this.state.lampOn);

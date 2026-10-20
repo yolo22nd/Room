@@ -324,6 +324,7 @@ export const interactionsMethods = {
       const fl = this.state.flags;
       if (won) {
         fl.pcWon = true; unlock('rps');
+        if (comp === 0) unlock('rpsflawless');
         const tip = fl.keyCell ? `"Close the PC and SEARCH the floor in the ${CELL_NAMES[fl.keyCell].toUpperCase()} part of the room."` : '"Close the PC and SEARCH the floor before moving from this spot."';
         ui.dialog({ title: 'YOU WON!!!', html: `<div class="pc-screen">Congratulations,\nyou have cleared the first half of the game...\n\nNow here is your secret tip:\n\n${tip}</div>`, buttons: [{ label: 'Close the PC' }] });
         this.engine.autosave();

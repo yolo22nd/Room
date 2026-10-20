@@ -158,6 +158,8 @@ export class Room {
     this.paintEyes = [];
     const white = new THREE.MeshStandardMaterial({ color: 0xf4efe0, roughness: 0.3 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x103010 });
+    this.pupilMat = pupilMat;
+    this.portrait = witch;
     for (const ex of [-0.1, 0.1]) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), white);
       eye.position.set(ex, -0.02, 0.04); witch.add(eye);
