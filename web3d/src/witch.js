@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { COL } from './a11y.js';
 import { ring, glowSprite } from './textures.js';
 import { CATALOG, buildObject, box, cyl } from './models.js';
 import { FX } from './fx.js';
@@ -138,7 +139,7 @@ export class WitchLevel {
     this.w = { state: 'fly', t: 0, ang: Math.PI / 2, pos: new THREE.Vector3(0, 4, -8), from: new THREE.Vector3(), to: new THREE.Vector3(), castAt: 0 };
     this.witch.position.copy(this.w.pos);
 
-    this.aimRing = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ map: ring(), color: 0xc9a8ff, transparent: true, depthWrite: false }));
+    this.aimRing = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ map: ring(), color: COL.mine, transparent: true, depthWrite: false }));
     this.aimRing.rotation.x = -Math.PI / 2; this.aimRing.position.y = 0.04; s.add(this.aimRing);
   }
 
@@ -197,7 +198,7 @@ export class WitchLevel {
     const type = types[Math.floor(Math.random() * types.length)];
     const obj = buildObject(type); obj.scale.setScalar(1.2); obj.rotation.y = Math.random() * 6;
     obj.position.set(p.x, 16, p.z); this.scene.add(obj);
-    this.drops.push({ obj, target: p.clone(), vy: 0, type, marker: this.marker(p, 1.4, 0xc9a8ff), mine: true });
+    this.drops.push({ obj, target: p.clone(), vy: 0, type, marker: this.marker(p, 1.4, COL.mine), mine: true });
     this.engine.stats.conjured++;
   }
 
@@ -346,7 +347,7 @@ export class WitchLevel {
       const goo = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), new THREE.MeshBasicMaterial({ color: 0x7bff4a })); goo.rotation.x = -Math.PI / 2; goo.position.y = 0.44; obj.add(goo);
     }
     obj.position.set(target.x, 15, target.z); this.scene.add(obj);
-    this.drops.push({ obj, target: target.clone(), vy: -4, type: kind, marker: this.marker(target, 1.5, 0xff4050), mine: false });
+    this.drops.push({ obj, target: target.clone(), vy: -4, type: kind, marker: this.marker(target, 1.5, COL.danger), mine: false });
     sfx.warn();
   }
 
@@ -373,7 +374,7 @@ export class WitchLevel {
           // reflected back at you
           d.reflected = true; d.mine = false; d.vy = 6;
           d.target.set(this.player.pos.x, 0, this.player.pos.z);
-          this.scene.remove(d.marker); d.marker = this.marker(d.target, 1.5, 0xff4050);
+          this.scene.remove(d.marker); d.marker = this.marker(d.target, 1.5, COL.danger);
           ui.log('Her shield flings it straight back at you!', 'warn');
         } else {
           this.scene.remove(d.obj); this.scene.remove(d.marker); this.drops.splice(i, 1);
@@ -491,7 +492,7 @@ export class WitchLevel {
     this.updateLemon(dt);
     const p = this.phase === 'fight' && this.spell === 'furniture' ? this.aimPoint() : null;
     this.aimRing.visible = !!p;
-    if (p) this.aimRing.position.set(p.x, 0.04, p.z);
+    if (p) { this.aimRing.position.set(p.x, 0.04, p.z); this.aimRing.material.color.set(COL.mine); }
     ui.setPrompt(null);
     ui.setBoss(this.phase === 'fight' ? { name: 'The Witch of Ember Hollow', frac: this.hp / this.maxHp } : null);
   }

@@ -20,7 +20,9 @@ const GrainShader = {
     }`,
 };
 
-import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener } from './input.js';
+import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener, setBindings, getBindings, BIND_LABELS, DEFAULT_BINDS } from './input.js';
+import { A11Y } from './a11y.js';
+import { setCaptionHook } from './audio.js';
 import * as ui from './ui.js';
 import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio.js';
 import { Player } from './player.js';
@@ -69,6 +71,16 @@ function resize() {
 addEventListener('resize', resize);
 applyQuality();
 setVolumes(settings.music, settings.sfx);
+function applyA11y() {
+  A11Y.reducedMotion = !!settings.reducedMotion;
+  A11Y.palette = settings.palette || 'standard';
+  document.body.classList.toggle('reduced-motion', A11Y.reducedMotion);
+  document.body.classList.toggle('captions', !!settings.captions);
+  document.body.style.setProperty('--ui-scale', settings.textScale || 1);
+  setBindings(settings.keys);
+}
+applyA11y();
+setCaptionHook((t) => ui.caption(t));
 
 // ---------------------------------------------------------------- engine
 const player = new Player(camera);
@@ -486,15 +498,26 @@ function showHelp() {
 }
 
 function showSettings() {
+  const chk = (id, on) => `<input type="checkbox" id="${id}" ${on ? 'checked' : ''}>`;
+  const sel = (id, opts, v) => `<select id="${id}">${opts.map(([k, l]) => `<option value="${k}" ${String(v) === String(k) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const box = ui.dialog({
     title: 'Settings',
     html: `
+      <div class="settings-section">Audio</div>
       <div class="setting"><span>Music</span><input type="range" id="s-music" min="0" max="1" step="0.05" value="${settings.music}"></div>
       <div class="setting"><span>Sound effects</span><input type="range" id="s-sfx" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
+      <div class="setting"><span>Sound captions</span>${chk('s-cap', settings.captions)}</div>
+      <div class="settings-section">Controls</div>
       <div class="setting"><span>Look sensitivity</span><input type="range" id="s-sens" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
-      <div class="setting"><span>Speedrun timer</span><input type="checkbox" id="s-timer" ${settings.showTimer ? 'checked' : ''}></div>
-      <div class="setting"><span>Invert look Y</span><input type="checkbox" id="s-inv" ${settings.invertY ? 'checked' : ''}></div>
-      <div class="setting"><span>Graphics</span><select id="s-q"><option value="high" ${settings.quality === 'high' ? 'selected' : ''}>High (shadows, bloom)</option><option value="low" ${settings.quality === 'low' ? 'selected' : ''}>Low (faster)</option></select></div>`,
+      <div class="setting"><span>Invert look Y</span>${chk('s-inv', settings.invertY)}</div>
+      <div class="setting"><span>Keyboard bindings</span><button class="btn" id="s-keys" style="padding:6px 12px">Remap keys…</button></div>
+      <div class="settings-section">Display</div>
+      <div class="setting"><span>Graphics</span>${sel('s-q', [['high', 'High (shadows, bloom)'], ['low', 'Low (faster)']], settings.quality)}</div>
+      <div class="setting"><span>Text size</span>${sel('s-text', [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']], settings.textScale)}</div>
+      <div class="setting"><span>Speedrun timer</span>${chk('s-timer', settings.showTimer)}</div>
+      <div class="settings-section">Accessibility</div>
+      <div class="setting"><span>Reduced motion<br><small class="muted">no camera shake, head-bob or bright flashes</small></span>${chk('s-motion', settings.reducedMotion)}</div>
+      <div class="setting"><span>Telegraph colours</span>${sel('s-pal', [['standard', 'Standard'], ['safe', 'Colour-blind safe']], settings.palette)}</div>`,
     buttons: [{ label: 'Done' }],
   });
   const upd = () => {
@@ -504,12 +527,51 @@ function showSettings() {
     settings.invertY = box.querySelector('#s-inv').checked;
     settings.showTimer = box.querySelector('#s-timer').checked;
     settings.quality = box.querySelector('#s-q').value;
+    settings.captions = box.querySelector('#s-cap').checked;
+    settings.reducedMotion = box.querySelector('#s-motion').checked;
+    settings.palette = box.querySelector('#s-pal').value;
+    settings.textScale = +box.querySelector('#s-text').value;
     setVolumes(settings.music, settings.sfx);
     player.sensitivity = settings.sensitivity; player.invertY = settings.invertY;
     engine.quality = settings.quality; applyQuality();
+    applyA11y();
     saveSettings(settings);
   };
   box.querySelectorAll('input,select').forEach(el => el.addEventListener('input', upd));
+  box.querySelector('#s-keys').addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
+}
+
+const keyName = (code) => code.replace(/^Key/, '').replace(/^Digit/, '').replace('Left', ' L').replace('Right', ' R');
+function showKeys() {
+  const binds = getBindings();
+  const box = ui.dialog({
+    title: 'Remap keys',
+    html: `<p class="muted">Click a key, then press the new one. Arrows, Esc, Enter, Tab and 1–9 stay fixed.</p>
+      ${Object.entries(BIND_LABELS).map(([a, l]) => `<div class="setting"><span>${l}</span><button class="btn keybind" data-a="${a}">${keyName(binds[a])}</button></div>`).join('')}`,
+    buttons: [
+      { label: 'Reset to defaults', keep: true, onClick: () => { settings.keys = {}; saveSettings(settings); applyA11y(); showKeys(); } },
+      { label: 'Back', onClick: showSettings },
+    ],
+  });
+  box.querySelectorAll('.keybind').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    box.querySelectorAll('.keybind').forEach(x => x.classList.remove('listening'));
+    b.classList.add('listening'); b.textContent = 'press a key…';
+    const grab = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      removeEventListener('keydown', grab, true);
+      if (ev.code !== 'Escape') {
+        const a = b.dataset.a;
+        // swap with whichever action already used this key
+        const cur = getBindings();
+        const clash = Object.keys(cur).find(k => cur[k] === ev.code && k !== a);
+        settings.keys = { ...cur, [a]: ev.code, ...(clash ? { [clash]: cur[a] } : {}) };
+        saveSettings(settings); applyA11y();
+      }
+      showKeys();
+    };
+    addEventListener('keydown', grab, true);
+  }));
 }
 
 function pauseMenu() {
@@ -598,7 +660,6 @@ function frame() {
 }
 
 // key X drops the lamp
-addEventListener('keydown', (e) => { if (e.code === 'KeyX' && input.enabled && !e.repeat) input.actions.push('drop'); });
 
 // debug / test hook (used by automated playtests)
 window.__room = { engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };

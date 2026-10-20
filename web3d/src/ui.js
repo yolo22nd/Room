@@ -31,6 +31,15 @@ export function log(text, cls = '') {
   setTimeout(() => d.remove(), life + 1100);
 }
 
+let lastCap = '', lastCapT = 0;
+export function caption(text) {
+  if (!document.body.classList.contains('captions')) return;
+  const now = performance.now();
+  if (text === lastCap && now - lastCapT < 1500) return;
+  lastCap = text; lastCapT = now;
+  log(text, 'cap');
+}
+
 export function setPrompt(html) {
   if (!html) { els.prompt.classList.add('hidden'); els.crosshair.classList.remove('active'); return; }
   els.prompt.innerHTML = html; els.prompt.classList.remove('hidden'); els.crosshair.classList.add('active');
@@ -82,6 +91,7 @@ export function setCooldown(frac) {
 
 export function flash(color = '#fff', strength = 0.8, ms = 400) {
   const f = els.flash;
+  if (document.body.classList.contains('reduced-motion')) { strength = Math.min(strength, 0.2); ms = Math.max(ms, 800); }
   f.style.transition = 'none'; f.style.background = color; f.style.opacity = strength;
   requestAnimationFrame(() => { f.style.transition = `opacity ${ms}ms ease-out`; f.style.opacity = 0; });
 }

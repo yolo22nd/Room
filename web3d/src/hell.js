@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { COL } from './a11y.js';
 import { basalt, lava, ring, glowSprite, portal } from './textures.js';
 import { CATALOG, buildObject, makeGiantNail } from './models.js';
 import { FX } from './fx.js';
@@ -120,7 +121,7 @@ export class HellLevel {
     this.buildKraken();
 
     // aim ring
-    const ringMat = new THREE.MeshBasicMaterial({ map: ring(), color: 0xc9a8ff, transparent: true, depthWrite: false });
+    const ringMat = new THREE.MeshBasicMaterial({ map: ring(), color: COL.mine, transparent: true, depthWrite: false });
     this.aimRing = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), ringMat);
     this.aimRing.rotation.x = -Math.PI / 2; this.aimRing.position.y = 0.04; s.add(this.aimRing);
   }
@@ -302,7 +303,7 @@ export class HellLevel {
       const nail = makeGiantNail(0.9);
       nail.position.set(p.x, 40, p.z);
       this.scene.add(nail);
-      this.drops.push({ obj: nail, target: p.clone(), vy: -10, nail: true, marker: this.marker(p, 3.2, 0xffe0a0) });
+      this.drops.push({ obj: nail, target: p.clone(), vy: -10, nail: true, marker: this.marker(p, 3.2, COL.nail) });
     } else {
       if (this.cooldown > 0) { sfx.locked(); return; }
       this.cooldown = this.state.flags.wand ? 0.45 : 0.9;
@@ -315,7 +316,7 @@ export class HellLevel {
       obj.rotation.y = Math.random() * Math.PI * 2;
       obj.position.set(p.x, 16, p.z);
       this.scene.add(obj);
-      this.drops.push({ obj, target: p.clone(), vy: 0, type, marker: this.marker(p, 1.6, 0xc9a8ff) });
+      this.drops.push({ obj, target: p.clone(), vy: 0, type, marker: this.marker(p, 1.6, COL.mine) });
       this.engine.stats.conjured++;
     }
     this.refreshHUD();
@@ -417,7 +418,7 @@ export class HellLevel {
     const off = new THREE.Vector3(T.target.x - ARENA_C.x, 0, T.target.z - ARENA_C.z);
     if (off.length() > ARENA_R - 1) off.setLength(ARENA_R - 1);
     T.target.set(ARENA_C.x + off.x, 0, ARENA_C.z + off.z);
-    T.warn = this.marker(T.target, 1.9, 0xff3030);
+    T.warn = this.marker(T.target, 1.9, COL.danger);
     T.warn.material.opacity = 0.2;
     sfx.warn();
   }
@@ -590,7 +591,7 @@ export class HellLevel {
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowSprite('#ff6010'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     glow.scale.set(3, 3, 1); obj.add(glow);
     obj.position.copy(from); this.scene.add(obj);
-    const marker = this.marker(to, 1.6, 0xff6020);
+    const marker = this.marker(to, 1.6, COL.fire);
     this.projectiles.push({ obj, from, to, t: 0, dur: 1.6, marker });
     sfx.fireball();
   }
@@ -698,7 +699,7 @@ export class HellLevel {
       this.aimRing.position.set(p.x, 0.04, p.z);
       const s = this.spell === 'nail' ? 3.4 : 1.4;
       this.aimRing.scale.setScalar(s);
-      this.aimRing.material.color.set(this.spell === 'nail' ? 0xffe0a0 : 0xc9a8ff);
+      this.aimRing.material.color.set(this.spell === 'nail' ? COL.nail : COL.mine);
     }
     ui.setPrompt(null);
   }

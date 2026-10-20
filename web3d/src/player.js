@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { input, moveVector } from './input.js';
 import { sfx } from './audio.js';
+import { A11Y } from './a11y.js';
 
 export const RADIUS = 0.3;
 const EYE = 1.62;
@@ -31,7 +32,7 @@ export class Player {
     if (instant) this.height = EYE;
   }
 
-  addShake(a) { this.shake = Math.max(this.shake, a); }
+  addShake(a) { if (!A11Y.reducedMotion) this.shake = Math.max(this.shake, a); }
 
   forward() { return new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); }
 
@@ -67,7 +68,7 @@ export class Player {
     }
 
     this.height += (this.targetHeight - this.height) * Math.min(1, dt * 6);
-    const bobY = this.moving ? Math.sin(this.bob) * 0.04 : 0;
+    const bobY = this.moving && !A11Y.reducedMotion ? Math.sin(this.bob) * 0.04 : 0;
     this.shake = Math.max(0, this.shake - dt * 1.8);
     const sh = this.shake * this.shake;
     this.camera.position.set(

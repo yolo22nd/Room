@@ -12,12 +12,32 @@ export const input = {
   enabled: false,      // when false (menus open) movement/look are ignored
 };
 
-const KEY_ACTIONS = {
-  KeyE: 'use', KeyQ: 'book', Tab: 'book', KeyF: 'lamp', KeyG: 'search', KeyR: 'rotate',
-  Escape: 'pause', KeyP: 'pause', Space: 'stand', KeyC: 'stand',
-  Digit1: 'n1', Digit2: 'n2', Digit3: 'n3', Digit4: 'n4', Digit5: 'n5', Digit6: 'n6', Digit7: 'n7', Digit8: 'n8', Digit9: 'n9',
-  Enter: 'enter', Slash: 'console', KeyT: 'console', Backquote: 'console',
+// Remappable bindings (action -> key code). Arrows, digits, Enter, Esc and
+// Tab keep fixed meanings so menus and spell slots always work.
+export const BIND_LABELS = {
+  forward: 'Move forward', back: 'Move back', left: 'Strafe left', right: 'Strafe right', run: 'Run',
+  use: 'Interact', book: 'Spellbook / switch spell', lamp: 'Lamp', search: 'Search', rotate: 'Rotate',
+  stand: 'Stand up', drop: 'Put lamp down', console: 'Command line', photo: 'Photo mode',
 };
+export const DEFAULT_BINDS = {
+  forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', run: 'ShiftLeft',
+  use: 'KeyE', book: 'KeyQ', lamp: 'KeyF', search: 'KeyG', rotate: 'KeyR',
+  stand: 'Space', drop: 'KeyX', console: 'Slash', photo: 'KeyV',
+};
+const MOVE = ['forward', 'back', 'left', 'right', 'run'];
+let binds = { ...DEFAULT_BINDS };
+export function setBindings(b) { binds = { ...DEFAULT_BINDS, ...(b || {}) }; }
+export const getBindings = () => ({ ...binds });
+
+const FIXED_ACTIONS = {
+  Tab: 'book', Escape: 'pause', KeyP: 'pause',
+  Digit1: 'n1', Digit2: 'n2', Digit3: 'n3', Digit4: 'n4', Digit5: 'n5', Digit6: 'n6', Digit7: 'n7', Digit8: 'n8', Digit9: 'n9',
+  Enter: 'enter',
+};
+function actionFor(code) {
+  for (const [a, c] of Object.entries(binds)) if (c === code && !MOVE.includes(a)) return a;
+  return FIXED_ACTIONS[code] || null;
+}
 
 let canvasEl;
 const overlayOpen = () => !document.getElementById('dialog').classList.contains('hidden') || !document.getElementById('screen').classList.contains('hidden');
@@ -31,7 +51,7 @@ export function initInput(canvas) {
     if (e.repeat) return;
     input.keys.add(e.code);
     if (overlayOpen()) return; // dialogs handle their own keys
-    const a = KEY_ACTIONS[e.code];
+    const a = actionFor(e.code);
     if (a) { input.actions.push(a); if (e.code === 'Tab' || e.code === 'Space') e.preventDefault(); }
   });
   addEventListener('keyup', (e) => input.keys.delete(e.code));
@@ -72,14 +92,14 @@ export function consumeActions() { const a = input.actions; input.actions = []; 
 export function moveVector() {
   let x = 0, y = 0;
   const k = input.keys;
-  if (k.has('KeyW') || k.has('ArrowUp')) y += 1;
-  if (k.has('KeyS') || k.has('ArrowDown')) y -= 1;
-  if (k.has('KeyD') || k.has('ArrowRight')) x += 1;
-  if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
+  if (k.has(binds.forward) || k.has('ArrowUp')) y += 1;
+  if (k.has(binds.back) || k.has('ArrowDown')) y -= 1;
+  if (k.has(binds.right) || k.has('ArrowRight')) x += 1;
+  if (k.has(binds.left) || k.has('ArrowLeft')) x -= 1;
   x += input.stick.x + input.pad.x; y += input.stick.y + input.pad.y;
   const len = Math.hypot(x, y);
   if (len > 1) { x /= len; y /= len; }
-  return { x, y, run: k.has('ShiftLeft') || k.has('ShiftRight') || input.pad.run };
+  return { x, y, run: k.has(binds.run) || (binds.run === 'ShiftLeft' && k.has('ShiftRight')) || input.pad.run };
 }
 
 // ---------------------------------------------------------------- gamepad

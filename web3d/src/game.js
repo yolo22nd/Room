@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { COL } from './a11y.js';
 import {
   Room, CELLS, SIDES, SIDE_NAMES, CELL_NAMES, cellCenter, cellAt, sideMatrix, sideRot,
   HALF, WALL_H, GAP_W, ANNEX_W, ANNEX_D, WALL_T,
@@ -283,7 +284,7 @@ export class RoomLevel {
     const kind = CATALOG[type].kind;
     let ghost;
     if (kind === 'junk') {
-      ghost = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: ring(), color: 0xc9a8ff, transparent: true, depthWrite: false }));
+      ghost = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: ring(), color: COL.mine, transparent: true, depthWrite: false }));
       ghost.rotation.x = -Math.PI / 2;
       this.scene.add(ghost);
       this.placing = { type, kind, ghost, rot: 0, target: null };

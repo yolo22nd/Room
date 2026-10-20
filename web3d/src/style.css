@@ -100,6 +100,12 @@ html, body {
 #log .line.good { border-left-color: var(--good); }
 #log .line.lore { border-left-color: var(--ember); font-style: italic; }
 #log .line.fade { opacity: 0; }
+#log .line.cap { border-left-color: #6a6a7a; color: #c8c8d8; font-family: var(--mono); font-size: 12px; padding: 3px 8px; }
+body { --ui-scale: 1; }
+#log, #objective, #prompt, #inventory, .dialog, #toasts, #boss, #timer { zoom: var(--ui-scale); }
+.keybind { font-family: var(--mono); min-width: 120px; text-align: center !important; }
+.keybind.listening { border-color: var(--accent); color: var(--accent); }
+.settings-section { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 16px 0 4px; border-bottom: 1px solid #2c2240; padding-bottom: 4px; }
 @keyframes logIn { from { transform: translateY(8px); opacity: 0; } }
 
 #cooldown {

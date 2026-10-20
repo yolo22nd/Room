@@ -1,6 +1,9 @@
 // Procedural audio: everything is synthesised with WebAudio, no asset files.
 
 let ctx = null;
+let capHook = () => {};
+export function setCaptionHook(fn) { capHook = fn; }
+const cap = (t) => capHook(t);
 let master, musicBus, sfxBus;
 let noiseBuf = null;
 let ambience = null;
@@ -65,43 +68,44 @@ export const sfx = {
     [0, 0.05, 0.1, 0.15, 0.2].forEach((d, i) => tone(440 * Math.pow(1.26, i), 0.35, { type: 'sine', vol: 0.07, delay: d }));
     noise(0.6, { vol: 0.06, freq: 3000, type: 'highpass', sweep: 2 });
   },
-  rift() { noise(0.8, { vol: 0.08, freq: 400, q: 8, type: 'bandpass', sweep: 4 }); },
+  rift() { cap('[a rift opens above]'); noise(0.8, { vol: 0.08, freq: 400, q: 8, type: 'bandpass', sweep: 4 }); },
   thud(size = 1) {
+    if (size >= 1.2) cap('[loud thud]');
     tone(90 / Math.sqrt(size), 0.5, { type: 'sine', vol: 0.5, slide: 0.4 });
     noise(0.35, { vol: 0.35 * size, freq: 600, sweep: 0.3 });
   },
-  shatter() {
+  shatter() { cap('[glass shatters]');
     for (let i = 0; i < 8; i++) tone(2000 + Math.random() * 3000, 0.15 + Math.random() * 0.2, { type: 'triangle', vol: 0.05, delay: Math.random() * 0.25 });
     noise(0.5, { vol: 0.25, freq: 4000, type: 'highpass' });
   },
-  hurt() { tone(220, 0.3, { type: 'sawtooth', vol: 0.18, slide: 0.5 }); noise(0.25, { vol: 0.2, freq: 900 }); },
+  hurt() { cap('[you grunt in pain]'); tone(220, 0.3, { type: 'sawtooth', vol: 0.18, slide: 0.5 }); noise(0.25, { vol: 0.2, freq: 900 }); },
   pickup() { tone(660, 0.1, { type: 'square', vol: 0.06 }); tone(990, 0.18, { type: 'square', vol: 0.06, delay: 0.08 }); },
   key() { [0, 0.08, 0.16].forEach((d, i) => tone([784, 988, 1319][i], 0.3, { type: 'triangle', vol: 0.1, delay: d })); },
   lampOn() { tone(1200, 0.04, { type: 'square', vol: 0.05 }); noise(0.4, { vol: 0.04, freq: 2500, type: 'bandpass' }); },
   lampOff() { tone(700, 0.05, { type: 'square', vol: 0.05 }); },
   step() { noise(0.07, { vol: 0.05, freq: 350 + Math.random() * 150 }); },
-  water(on) { if (on) noise(0.6, { vol: 0.08, freq: 2500, type: 'bandpass', q: 0.6 }); },
-  locked() { tone(160, 0.08, { type: 'square', vol: 0.12 }); tone(140, 0.12, { type: 'square', vol: 0.12, delay: 0.1 }); },
+  water(on) { cap('[running water]'); if (on) noise(0.6, { vol: 0.08, freq: 2500, type: 'bandpass', q: 0.6 }); },
+  locked() { cap('[locked]'); tone(160, 0.08, { type: 'square', vol: 0.12 }); tone(140, 0.12, { type: 'square', vol: 0.12, delay: 0.1 }); },
   achievement() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.4, { type: 'triangle', vol: 0.09, delay: i * 0.09 })); },
   win() { [392, 494, 587, 784].forEach((f, i) => tone(f, 0.25, { type: 'square', vol: 0.06, delay: i * 0.1 })); },
   lose() { [392, 330, 262].forEach((f, i) => tone(f, 0.3, { type: 'square', vol: 0.06, delay: i * 0.14 })); },
-  roar() {
+  roar() { cap('[KRAKEN ROARS]');
     tone(70, 2.2, { type: 'sawtooth', vol: 0.35, attack: 0.3, slide: 0.6 });
     tone(105, 2.0, { type: 'sawtooth', vol: 0.2, attack: 0.3, slide: 0.5 });
     noise(2.2, { vol: 0.35, freq: 300, q: 2, type: 'bandpass', attack: 0.3, sweep: 0.5 });
   },
-  slam() { tone(55, 0.8, { type: 'sine', vol: 0.6, slide: 0.5 }); noise(0.6, { vol: 0.45, freq: 400, sweep: 0.2 }); },
-  warn() { tone(330, 0.15, { type: 'square', vol: 0.05 }); },
-  sizzle() { noise(0.5, { vol: 0.12, freq: 5000, type: 'highpass' }); },
-  fireball() { noise(0.9, { vol: 0.15, freq: 800, q: 3, type: 'bandpass', sweep: 0.4 }); },
-  nail() {
+  slam() { cap('[heavy slam]'); tone(55, 0.8, { type: 'sine', vol: 0.6, slide: 0.5 }); noise(0.6, { vol: 0.45, freq: 400, sweep: 0.2 }); },
+  warn() { cap('[warning tone]'); tone(330, 0.15, { type: 'square', vol: 0.05 }); },
+  sizzle() { cap('[sizzle]'); noise(0.5, { vol: 0.12, freq: 5000, type: 'highpass' }); },
+  fireball() { cap('[fireball whooshes]'); noise(0.9, { vol: 0.15, freq: 800, q: 3, type: 'bandpass', sweep: 0.4 }); },
+  nail() { cap('[enormous metallic CLANG]');
     tone(1500, 1.5, { type: 'triangle', vol: 0.15, slide: 0.98 });
     tone(2250, 1.2, { type: 'triangle', vol: 0.08, slide: 0.98 });
     tone(45, 1.4, { type: 'sine', vol: 0.7, slide: 0.5 });
     noise(1.2, { vol: 0.5, freq: 500, sweep: 0.2 });
   },
   heartbeat() { tone(60, 0.12, { type: 'sine', vol: 0.4, slide: 0.6 }); tone(55, 0.14, { type: 'sine', vol: 0.3, slide: 0.6, delay: 0.18 }); },
-  whisper() { noise(1.6, { vol: 0.08, freq: 1800, q: 5, type: 'bandpass', attack: 0.4, sweep: 0.6 }); },
+  whisper() { cap('[eerie whispering]'); noise(1.6, { vol: 0.08, freq: 1800, q: 5, type: 'bandpass', attack: 0.4, sweep: 0.6 }); },
 };
 
 // ---- ambience / music beds ----
