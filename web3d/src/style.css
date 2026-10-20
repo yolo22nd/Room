@@ -222,6 +222,24 @@ button.btn .k { font-family: var(--mono); color: var(--muted); font-size: 12px; 
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; }
 .setting input[type=range] { width: 50%; accent-color: var(--accent); }
 
+/* ---------- Photo mode ---------- */
+#hud.photo > *:not(#vignette) { display: none !important; }
+#photo {
+  position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 14px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 15; max-width: calc(100vw - 24px);
+}
+.ph-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.ph-row label { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.ph-row input[type=range] { accent-color: var(--accent); width: 120px; }
+.ph-chip { font: 12px var(--font); color: var(--text); background: #1f1730; border: 1px solid #3d2f55; border-radius: 99px; padding: 5px 11px; cursor: pointer; }
+.ph-chip.on { border-color: var(--accent); background: #3a2a5a; }
+.ph-hint { font-size: 11px; color: var(--muted); }
+#ph-preview { display: flex; gap: 10px; align-items: center; }
+#ph-preview img { width: 160px; border-radius: 6px; border: 1px solid var(--panel-edge); }
+#ph-preview a { color: var(--accent); font-size: 13px; }
+body.touch #photo { bottom: 12px; }
+
 /* ---------- Touch ---------- */
 #touch { position: absolute; inset: 0; pointer-events: none; }
 #stick {

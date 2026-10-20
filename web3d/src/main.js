@@ -22,6 +22,7 @@ const GrainShader = {
 
 import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener, setBindings, getBindings, BIND_LABELS, DEFAULT_BINDS } from './input.js';
 import { A11Y } from './a11y.js';
+import { PhotoMode, FILTERS } from './photo.js';
 import { setCaptionHook } from './audio.js';
 import * as ui from './ui.js';
 import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio.js';
@@ -44,7 +45,7 @@ const settings = loadSettings();
 if (input.touch && !hasSavedSettings()) settings.quality = 'low';
 
 // ---------------------------------------------------------------- renderer
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false });
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -81,6 +82,43 @@ function applyA11y() {
 }
 applyA11y();
 setCaptionHook((t) => ui.caption(t));
+
+// ---------------------------------------------------------------- photo mode
+let photo = null;
+function initPhoto() {
+  const panel = document.getElementById('photo');
+  photo = new PhotoMode(engine, canvas, panel);
+  const fl = panel.querySelector('#ph-filters');
+  fl.innerHTML = Object.entries(FILTERS).map(([k, f]) => `<button class="ph-chip" data-f="${k}">${f.name}</button>`).join('');
+  fl.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { sfx.click(); photo.setFilter(b.dataset.f); }));
+  panel.querySelector('#ph-fov').addEventListener('input', (e) => photo.setFov(+e.target.value));
+  panel.querySelector('#ph-shot').addEventListener('click', () => { photo.pending = true; });
+  panel.querySelector('#ph-exit').addEventListener('click', () => exitPhoto());
+}
+function enterPhoto() {
+  if (engine.mode !== 'play' || !engine.level || photo.active) return;
+  engine.photo = true;
+  releaseLock();
+  photo.enter();
+  ui.setPrompt(null);
+  unlock('photo');
+}
+function exitPhoto() {
+  if (!photo || !photo.active) return;
+  photo.exit();
+  engine.photo = false;
+  document.getElementById('ph-preview').classList.add('hidden');
+}
+function finishCapture() {
+  const url = photo.captureNow();
+  photo.pending = false;
+  sfx.lampOn(); ui.flash('#ffffff', 0.5, 300);
+  const pv = document.getElementById('ph-preview');
+  const name = `room-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+  pv.innerHTML = `<img src="${url}" alt="Your photo"><a href="${url}" download="${name}">⬇ Save photo</a>`;
+  pv.classList.remove('hidden');
+}
+
 
 // ---------------------------------------------------------------- engine
 const player = new Player(camera);
@@ -599,6 +637,7 @@ function pauseMenu() {
       { label: 'Resume', cls: 'primary', onClick: () => { engine.paused = false; requestLock(); } },
       inRoom ? { label: 'Save game', onClick: () => { engine.mode = 'play'; engine.autosave(true); ui.log('Game saved.', 'good'); engine.paused = false; requestLock(); } } : { label: 'Checkpoint saved at the start of this fight', disabled: true },
       inRoom ? { label: 'Command line (classic mode)', onClick: () => { engine.paused = false; engine.level.openConsole(); } } : null,
+      { label: '📸 Photo mode', onClick: () => { engine.paused = false; enterPhoto(); } },
       { label: 'How to play', onClick: () => { showHelp(); } },
       { label: 'Settings', onClick: () => showSettings() },
       { label: 'Achievements', onClick: () => showAchievements() },
@@ -620,9 +659,19 @@ function frame() {
 
   pollGamepad(dt);
   const actions = consumeActions();
+  if (engine.photo) {
+    for (const a of actions) if (a === 'pause' || a === 'photo' || a === 'cancel') exitPhoto();
+    input.enabled = true;
+    photo.update(dt);
+    updateAudio(dt);
+    composer.render(dt);
+    if (photo.pending) finishCapture();
+    return;
+  }
   if (engine.mode === 'play' && engine.level) {
     for (const a of actions) {
       if (a === 'pause' || a === 'unlocked') { if (!busy) pauseMenu(); continue; }
+      if (a === 'photo') { if (!busy) enterPhoto(); continue; }
       if (!input.enabled) continue;
       engine.level.handleAction(a);
     }
@@ -662,7 +711,8 @@ function frame() {
 // key X drops the lamp
 
 // debug / test hook (used by automated playtests)
-window.__room = { engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
+window.__room = { enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
 
+initPhoto();
 showTitle();
 frame();

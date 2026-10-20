@@ -63,6 +63,7 @@ export const ACHIEVEMENTS = [
   { id: 'witchflawless', icon: '✨', name: 'Not a Scratch', desc: 'Beat the witch without losing a heart.' },
   { id: 'architect', icon: '📐', name: 'Architect', desc: 'Share a room you built in the editor.' },
   { id: 'custom', icon: '🚪', name: 'Guest Star', desc: 'Escape a custom room.' },
+  { id: 'photo', icon: '📸', name: 'Say Cheese', desc: 'Open photo mode.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
   { id: 'smash', icon: '🔨', name: 'Who Needs Keys', desc: 'Smash the showcase with a falling anvil.' },
   { id: 'vault', icon: '🔓', name: 'Safecracker', desc: 'Open the witch\'s vault on the PC.' },

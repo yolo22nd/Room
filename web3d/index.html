@@ -43,6 +43,18 @@
       </div>
     </div>
 
+    <!-- Photo mode -->
+    <div id="photo" class="hidden">
+      <div class="ph-row" id="ph-filters"></div>
+      <div class="ph-row">
+        <label>FOV <input type="range" id="ph-fov" min="20" max="110" step="1"></label>
+        <button class="btn primary" id="ph-shot">📸 Capture</button>
+        <button class="btn" id="ph-exit">Exit</button>
+      </div>
+      <div class="ph-hint">Click the view to look (Esc frees the mouse) · fly: move keys / stick · up/down: E / Q</div>
+      <div id="ph-preview" class="hidden"></div>
+    </div>
+
     <!-- Screens / dialogs -->
     <div id="screen" class="hidden"></div>
     <div id="dialog" class="hidden"></div>
