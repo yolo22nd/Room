@@ -57,6 +57,18 @@ export const interactionsMethods = {
 
   sleepOn(this: any, type, ent) {
     const fl = this.state.flags;
+    const floorKinds = [...this.entities.values()].filter(e => CATALOG[e.type].kind === 'floor').length;
+    if (fl.hellKeyTaken && floorKinds >= 12 && this.state.mode !== 'custom' && this.state.mode !== 'editor') {
+      ui.dialog({
+        title: 'Stay?',
+        html: '<p>You lie down in a room you built yourself. Every piece of it. The H key is heavy in your pocket.</p><p>You could just... stay.</p>',
+        buttons: [
+          { label: '🛋️ Stay forever and redecorate', onClick: () => this.engine.endWith('redecorator') },
+          { label: 'No — hell is waiting', cls: 'primary' },
+        ],
+      });
+      return;
+    }
     if (fl.showered) { ui.log('You had just taken a shower. You\'re too fresh to sleep.'); return; }
     if (fl.slept) { ui.log('You have already slept enough. You are not feeling sleepy.'); return; }
     fl.slept = true;

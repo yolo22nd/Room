@@ -31,6 +31,7 @@ import { RoomLevel, freshRoomState, todaySeed } from './game';
 import { HellLevel } from './hell';
 import { WitchLevel } from './witch';
 import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share';
+import { ENDINGS, recordEnding, seenEndings, trueEndingReady } from './endings';
 import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
@@ -229,7 +230,7 @@ const engine: any = {
       dismissable: false,
       buttons: [
         { label: '⚔️ Accept the rematch (Part 3)', cls: 'primary', onClick: () => this.startWitch() },
-        { label: 'Not today', onClick: () => { clearSave(); showEnding('escape'); } },
+        { label: 'Not today', onClick: () => this.endWith('escape') },
       ],
     });
   },
@@ -275,8 +276,31 @@ const engine: any = {
     ui.flash('#ffffff', 0.8, 1500);
     this.split('Rematch');
     clearSave();
-    await ui.story(WITCH_ENDING);
-    showEnding('witch');
+    await ui.story([WITCH_ENDING[0]]);
+    const ready = trueEndingReady(this.roomState);
+    ui.dialog({
+      title: 'The witch, in the grass',
+      html: '<p>She is laughing too hard to get up. Her broom lies next to her. What do you do?</p>',
+      dismissable: false,
+      buttons: [
+        { label: '🤝 Offer her a hand', cls: 'primary', onClick: () => this.endWith('apprentice') },
+        { label: '🧹 Take her broom', onClick: () => this.endWith('rival') },
+        ready ? { label: '📓 Give back everything you found', onClick: () => this.endWith('true') }
+          : { label: '🔒 ??? (you don\'t know enough yet)', disabled: true },
+      ],
+    });
+  },
+
+  async endWith(id) {
+    this.mode = 'transition';
+    releaseLock();
+    clearSave();
+    const n = recordEnding(id);
+    if (id === 'true') unlock('trueending');
+    if (id === 'redecorator') unlock('redecorator');
+    if (n >= Object.keys(ENDINGS).length) unlock('allendings');
+    if (ENDINGS[id].story) await ui.story(ENDINGS[id].story);
+    showEnding(id);
   },
 };
 
@@ -331,6 +355,7 @@ function showTitle() {
         <button class="btn" id="t-editor">🛠️ Room editor</button>
         <button class="btn" id="t-help">How to play</button>
         <button class="btn" id="t-ach">Achievements (${unlockedCount()}/${ACHIEVEMENTS.length})</button>
+        <button class="btn" id="t-endings">Endings (${seenEndings().length}/${Object.keys(ENDINGS).length})</button>
         <button class="btn" id="t-settings">Settings</button>
       </div>
       <div class="foot">A 3D reimagining of “Room”, a Java command-line game.<br>Headphones recommended.</div>
@@ -342,6 +367,7 @@ function showTitle() {
   on('t-editor', () => openEditor());
   on('t-shared', () => { const d = decodeRoom(roomCodeFromHash()); if (d) playCustom(d.custom, d.placed); });
   on('t-ach', () => showAchievements());
+  on('t-endings', () => showEndings());
   on('t-settings', () => showSettings());
   // music starts on first interaction
   const kick = () => { initAudio(); playAmbience('room'); removeEventListener('pointerdown', kick); };
@@ -518,14 +544,26 @@ function showEnding(kind = 'escape') {
   }).join('');
   const modeName = mode === 'daily' ? `daily ${st.seed}` : mode;
   ui.screen(`<div class="title-wrap">
-    <h1 style="font-size:clamp(36px,7vw,64px)">${kind === 'witch' ? 'The Apprentice' : 'You escaped'}</h1>
-    <div class="sub">${kind === 'witch' ? 'kraken nailed · witch defeated' : 'kraken 2.0 · nailed'} <span class="mode-badge">${modeName}</span></div>
+    <h1 style="font-size:clamp(36px,7vw,64px)">${ENDINGS[kind].title}</h1>
+    <div class="sub">${ENDINGS[kind].sub} <span class="mode-badge">${modeName}</span></div>
     <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
     ${rows ? `<table class="splits">${rows}</table>` : ''}
-    <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-title">Back to title</button></div>
-    <div class="foot">${kind === 'witch' ? 'Thanks for playing ROOM — all three parts.' : 'The rematch is waiting whenever you are: escape again and say yes.'}</div></div>`);
+    <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button><button class="btn" id="e-title">Back to title</button></div>
+    <div class="foot">${ENDINGS[kind].foot}<br>Endings found: ${seenEndings().length}/${Object.keys(ENDINGS).length}</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
+  document.getElementById('e-end').onclick = () => showEndings();
   document.getElementById('e-title').onclick = () => showTitle();
+}
+
+function showEndings() {
+  const seen = seenEndings();
+  ui.dialog({
+    title: `Endings ${seen.length}/${Object.keys(ENDINGS).length}`,
+    html: `<div class="ach-list">${Object.entries<any>(ENDINGS).map(([id, e]) => seen.includes(id)
+      ? `<div class="ach"><span class="ico">🎬</span><div>${e.title}<small>${e.sub}</small></div></div>`
+      : `<div class="ach locked"><span class="ico">🔒</span><div>???<small>${e.hint}</small></div></div>`).join('')}</div>`,
+    buttons: [{ label: 'Close' }],
+  });
 }
 
 function showAchievements() {

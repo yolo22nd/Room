@@ -32,6 +32,9 @@ test('witch: hits through her phases lead to the finale', async ({ page }) => {
   for (let i = 0; i < 6; i++) await level(page, (L) => { L.w.state = 'cast'; L.hitWitch(); });
   expect(await level(page, (L) => L.phase)).toBe('won');
   await page.waitForSelector('#screen .story', { timeout: 30_000 });
+  await advanceStory(page, 3);
+  await expect(page.locator('button:has-text("??? (you don")')).toBeDisabled(); // no secrets: true ending locked
+  await page.click('button:has-text("Offer her a hand")');
   await advanceStory(page, 8);
   await expect(page.locator('#screen h1')).toHaveText('The Apprentice');
   expect(errors).toEqual([]);
