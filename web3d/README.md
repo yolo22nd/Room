@@ -104,7 +104,7 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 ## Features
 
 - Autosave, with checkpoints at the gate of Hell and at the start of the rematch; Continue from the title screen
-- 30 achievements, stored in the browser
+- 42 achievements, stored in the browser
 - Real physics (Rapier, loaded on first use): junk spells (crate, beach ball, anvil) that stack and tumble;
   furniture that misses in Hell tumbles, gets blasted by slams and can roll into the lava
 - Installable PWA with offline play (production build), gamepad support

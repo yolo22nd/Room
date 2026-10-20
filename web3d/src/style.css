@@ -345,3 +345,4 @@ body.touch button.btn .k { display: none; }
   #timer small { font-size: 11px; }
   #hearts { font-size: 22px; }
 }
+.title-wrap .splits { max-width: 440px; margin-left: auto; margin-right: auto; }
