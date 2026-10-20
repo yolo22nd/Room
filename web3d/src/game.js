@@ -345,19 +345,107 @@ export class RoomLevel {
   castPlacing() {
     const pl = this.placing;
     if (!pl || !pl.target) return;
-    const err = this.placementError(pl.type, pl.target);
-    if (err) { sfx.locked(); ui.log(err, 'warn'); return; }
-    const key = this.keyFor(pl.type, pl.target);
+    if (this.conjureAt(pl.type, pl.target, pl.rot)) this.cancelPlacing();
+  }
+
+  conjureAt(type, slot, rot = this.defaultRot(type, slot)) {
+    const err = this.placementError(type, slot);
+    if (err) { sfx.locked(); ui.log(err, 'warn'); return false; }
+    const key = this.keyFor(type, slot);
     if (this.entities.has(key)) {
-      ui.log(`Your old ${CATALOG[pl.type].name.toLowerCase()} vanishes in a puff of smoke.`);
-      if (pl.type === 'showcase') { this.state.flags.showcaseOpen = false; }
+      ui.log(`Your old ${CATALOG[type].name.toLowerCase()} vanishes in a puff of smoke.`);
+      if (type === 'showcase') { this.state.flags.showcaseOpen = false; }
       this.despawn(key);
-      if (pl.type === 'cushion') { const pc = this.entities.get('pc'); if (pc) { ui.log('With the cushion gone, the PC crashes to the floor and shatters!', 'warn'); this.shatterPC(pc); } }
+      if (type === 'cushion') { const pc = this.entities.get('pc'); if (pc) { ui.log('With the cushion gone, the PC crashes to the floor and shatters!', 'warn'); this.shatterPC(pc); } }
     }
     sfx.conjure();
-    this.spawn(pl.type, pl.target, pl.rot);
+    this.spawn(type, slot, rot);
     this.engine.stats.conjured++;
+    return true;
+  }
+
+  // ------------------------------------------------- the classic CLI console
+  openConsole() {
     this.cancelPlacing();
+    const box = ui.dialog({
+      title: '&gt;_ Command line',
+      html: `<p class="muted">The original way to play. Try <b>create bed north east</b>, <b>create door w</b>, <b>go sw</b>, <b>locate</b>, <b>turn lamp</b>, <b>search</b>, <b>key</b>.</p>
+        <input id="cli" autocomplete="off" spellcheck="false" style="width:100%;font:16px var(--mono);padding:10px 12px;border-radius:8px;border:1px solid #45355e;background:#0d0a12;color:#7dffb2;outline:none" placeholder="what would you like to do ???">`,
+      buttons: [],
+    });
+    const el = box.querySelector('#cli');
+    setTimeout(() => el.focus(), 30);
+    el.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { const v = el.value; ui.closeDialog(); this.runCommand(v); }
+      if (e.key === 'Escape') ui.closeDialog();
+    });
+  }
+
+  runCommand(text) {
+    const words = text.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return;
+    ui.log('> ' + words.join(' '));
+    const aliases = { television: 'tv', study: 'table', desk: 'table', dining: 'dine', bookshelf: 'shelf', books: 'shelf', rack: 'shoerack', computer: 'pc', toilet: 'bathroom', lantern: 'lamp' };
+    const dirWords = { north: 'n', south: 's', east: 'e', west: 'w', middle: 'm', mid: 'm', center: 'm', centre: 'm', northeast: 'ne', northwest: 'nw', southeast: 'se', southwest: 'sw' };
+    let thing = null, ns = '', ew = '', mid = false;
+    for (const w0 of words) {
+      const w = aliases[w0] || w0;
+      if (CATALOG[w]) thing = w;
+      const d = dirWords[w] || (['n', 's', 'e', 'w', 'm', 'ne', 'nw', 'se', 'sw'].includes(w) ? w : null);
+      if (d) {
+        if (d === 'm') mid = true;
+        else { if (d.includes('n')) ns = 'n'; if (d.includes('s')) ns = 's'; if (d.includes('e')) ew = 'e'; if (d.includes('w')) ew = 'w'; }
+      }
+    }
+    const dir = (ns + ew) || (mid ? 'm' : null);
+    const verb = words[0];
+    if (verb === 'create' || verb === 'conjure') {
+      if (!thing) { ui.log('What do you want to create? e.g. "create bed north".', 'warn'); return; }
+      if (thing === 'lamp') { this.conjureLamp(); return; }
+      const kind = CATALOG[thing].kind;
+      if (!dir) { ui.log(`Where do you want to create the ${CATALOG[thing].name.toLowerCase()}? Add a direction.`, 'warn'); return; }
+      if (kind !== 'floor' && !['n', 's', 'e', 'w'].includes(dir)) { ui.log(`You can create a ${CATALOG[thing].name.toLowerCase()} only to the north, south, east or west.`, 'warn'); return; }
+      this.conjureAt(thing, dir);
+    } else if (verb === 'go' || verb === 'walk') {
+      if (!dir) { ui.log('Where do you want to go? Type N, NE, E, SE, S, SW, W, NW or middle.', 'warn'); return; }
+      const why = this.canMove();
+      if (why !== true) { this.blockedMsgT = -10; this.blocked(why); return; }
+      if (this.player.sitting) this.player.stand();
+      const cur = cellAt(this.player.pos.x, this.player.pos.z) || 'm';
+      let target;
+      if (dir === 'm') target = 'm';
+      else {
+        const c = cellCenter(cur);
+        const dx = dir.includes('e') ? 3 : dir.includes('w') ? -3 : 0;
+        const dz = dir.includes('s') ? 3 : dir.includes('n') ? -3 : 0;
+        target = cellAt(Math.max(-3, Math.min(3, c.x + dx)), Math.max(-3, Math.min(3, c.z + dz)));
+      }
+      const t = cellCenter(target);
+      this.autoWalk = { x: t.x, z: t.z, t: 0, name: CELL_NAMES[target] };
+    } else if (verb === 'locate' || verb === 'where') {
+      const c = this.room.annexAt(this.player.pos.x, this.player.pos.z);
+      ui.log(c ? `You are in the ${c.type}, ${SIDE_NAMES[c.side]} of the main room.` : `You are in the ${CELL_NAMES[cellAt(this.player.pos.x, this.player.pos.z) || 'm']} part of the room.`);
+    } else if (verb === 'turn' && (thing === 'lamp' || words.includes('lamp'))) {
+      this.toggleLamp();
+    } else if (verb === 'search') {
+      this.search();
+    } else if (verb === 'stand') {
+      if (this.player.sitting) { this.player.stand(); ui.log('You stood up.'); } else ui.log('You are already standing.');
+    } else if (verb === 'put' || verb === 'drop') {
+      if (this.state.lamp === 'hand') this.dropLamp(); else ui.log('You don\'t have anything that you can put on the floor.');
+    } else if (verb === 'pick') {
+      const l = this.state.lamp;
+      if (l && l !== 'hand' && this.player.pos.distanceTo(new THREE.Vector3(l.x, 0, l.z)) < 2) this.pickLamp(); else ui.log('You aren\'t close to anything you can pick up.');
+    } else if (verb === 'key' || verb === 'help') {
+      ui.log('create <thing> <direction> · go <direction> · locate · turn lamp · search · put / pick lamp · stand · end');
+    } else if (verb === 'end') {
+      ui.log('Are you sure you want to end this simulation? (Use the pause menu to quit to title.)');
+    } else if (['open', 'sit', 'sleep', 'turn', 'close', 'use'].includes(verb)) {
+      ui.log(`Walk up to it and press ${this.engine.touch ? 'Use' : 'E'} — the 3D world handles "${verb}" for you.`);
+    } else {
+      ui.log('Whatever you typed was not registered. You were supposed to type \'create\', \'go\', etc.', 'warn');
+    }
   }
 
   conjureLamp() {
@@ -948,6 +1036,7 @@ export class RoomLevel {
       case 'search': this.search(); break;
       case 'stand': if (this.player.sitting) { this.player.stand(); ui.log('You stood up.'); } break;
       case 'drop': this.dropLamp(); break;
+      case 'console': this.openConsole(); break;
     }
   }
 
@@ -1005,6 +1094,22 @@ export class RoomLevel {
       for (let i = 0; i < (this.tvOn ? 300 : 1400); i++) { const v = Math.random() * 255 | 0; g.fillStyle = `rgba(${v},${v},${v},${this.tvOn ? 0.25 : 0.9})`; g.fillRect(Math.random() * 320, Math.random() * 200, 2, 2); }
       scr.tex.needsUpdate = true;
       if (!this.tvOn && this.tvStatic <= 0) tv.group.userData.screenMesh.material.emissiveIntensity = 0;
+    }
+
+    if (this.autoWalk) {
+      const w = this.autoWalk; w.t += dt;
+      const dx = w.x - this.player.pos.x, dz = w.z - this.player.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.08 || w.t > 6) {
+        if (d < 0.6) ui.log(`You went to the ${w.name} of the room.`); else ui.log('Something is in the way.', 'warn');
+        this.autoWalk = null;
+      } else {
+        const step = Math.min(d, this.player.speed * dt);
+        const bx = this.player.pos.x, bz = this.player.pos.z;
+        this.player.tryMove(dx / d * step, dz / d * step);
+        this.player.moving = true; this.player.bob += dt * 8;
+        if (Math.hypot(this.player.pos.x - bx, this.player.pos.z - bz) < step * 0.2) w.t += dt * 4; // stuck
+      }
     }
 
     // placement ghost or interaction focus

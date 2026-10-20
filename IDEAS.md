@@ -26,6 +26,8 @@ Everything new lives in `web3d/`.
 - [x] The promised "legit explanation" for the TV and kitchen is finally delivered in the ending
 - [x] Side content: 6 lore books, dream sequence, the witch's TV channel, bathroom, kitchen + ember stew,
       shoes vs slippers vs barefoot in Hell, mirrors
+- [x] **Classic command line** (press `/`, or Pause → Command line): type the original commands
+      (`create bed north east`, `go sw`, `locate`, `turn lamp`, `search`) and the 3D world obeys
 - [x] Procedural audio (music + sfx), touch controls, autosave + Hell checkpoint, 18 achievements, settings
 - [x] Bugs from the original (the `notes` file and more) are gone in the 3D version; the Java code itself is
       unchanged: "north east" parsing and `ne` mapping to `nw`, kitchen
@@ -37,8 +39,6 @@ Everything new lives in `web3d/`.
 
 ### Quick wins
 - **GitHub Pages deploy**: a workflow that builds `web3d/` and publishes a playable link
-- **Text-command console** (press `/`): type the original commands (`create bed north`, `go se`, `open shelf`)
-  and the 3D world obeys. A love letter to the CLI version
 - **Photo mode** + "share your room" screenshot
 - **Room sharing**: encode the placed furniture in a URL so friends can visit your layout
 - Subtitles/captions for the witch's lines, colour-blind-friendly telegraph colours, a reduced-motion toggle

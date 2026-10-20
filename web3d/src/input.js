@@ -15,7 +15,7 @@ const KEY_ACTIONS = {
   KeyE: 'use', KeyQ: 'book', Tab: 'book', KeyF: 'lamp', KeyG: 'search', KeyR: 'rotate',
   Escape: 'pause', KeyP: 'pause', Space: 'stand', KeyC: 'stand',
   Digit1: 'n1', Digit2: 'n2', Digit3: 'n3', Digit4: 'n4', Digit5: 'n5', Digit6: 'n6', Digit7: 'n7', Digit8: 'n8', Digit9: 'n9',
-  Enter: 'enter',
+  Enter: 'enter', Slash: 'console', KeyT: 'console', Backquote: 'console',
 };
 
 let canvasEl;

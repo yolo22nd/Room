@@ -80,6 +80,7 @@ export { escapeHtml };
  */
 export function dialog({ title = '', html = '', buttons = [], onClose = null, dismissable = true, wide = false }) {
   closeDialog(true);
+  buttons = buttons.filter(Boolean);
   dialogOpen = true; onDialogClose = onClose;
   const wrap = els.dialog; wrap.innerHTML = '';
   const box = document.createElement('div'); box.className = 'dialog';

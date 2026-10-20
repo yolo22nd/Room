@@ -56,6 +56,7 @@ Pin four and its head slumps forward. Then drop the Giant Nail on it.
 | X | — | put the lamp down |
 | Space | move | stand up |
 | Esc | II | pause |
+| / or T | Pause → Command line | classic CLI: `create bed north east`, `go sw`, `locate`, `turn lamp`… |
 
 ## Features
 

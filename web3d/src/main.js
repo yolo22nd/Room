@@ -251,7 +251,7 @@ function showHelp() {
     title: 'How to play',
     html: `<p>You are a newbie wizard banished to a dark, empty room. Your one power: <b>anything you conjure falls from the sky</b>. Build the room, solve its secrets, and find your way to Hell — then out the other side.</p>
     ${touch ? `<p><b>Left stick</b> move · <b>drag</b> anywhere to look<br><b>Use</b> interact / confirm · <b>Cast</b> conjure / attack<br><b>Spells</b> open the spellbook (in Hell: switch spell)<br><b>Lamp</b> toggle the lamp · <b>Search</b> search the floor</p>`
-      : `<p><kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Mouse</kbd> look<br><kbd>E</kbd> interact · <kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast<br><kbd>R</kbd> rotate before casting · <kbd>Right-click</kbd> cancel<br><kbd>F</kbd> lamp · <kbd>G</kbd> search the floor · <kbd>X</kbd> put the lamp down<br><kbd>Space</kbd> stand up · <kbd>Esc</kbd> pause<br>In Hell: <kbd>1</kbd>/<kbd>2</kbd> or <kbd>Q</kbd> switch spell</p>`}
+      : `<p><kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Mouse</kbd> look<br><kbd>E</kbd> interact · <kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast<br><kbd>R</kbd> rotate before casting · <kbd>Right-click</kbd> cancel<br><kbd>F</kbd> lamp · <kbd>G</kbd> search the floor · <kbd>X</kbd> put the lamp down<br><kbd>Space</kbd> stand up · <kbd>Esc</kbd> pause<br><kbd>/</kbd> classic command line (<i>create bed north</i>, <i>go sw</i>…)<br>In Hell: <kbd>1</kbd>/<kbd>2</kbd> or <kbd>Q</kbd> switch spell</p>`}
     <p class="muted">Tip: things land on whatever cell you're looking at. Don't look at your own feet.</p>`,
     buttons: [{ label: 'Got it' }],
   });
@@ -294,6 +294,7 @@ function pauseMenu() {
     buttons: [
       { label: 'Resume', cls: 'primary', onClick: () => { engine.paused = false; requestLock(); } },
       inRoom ? { label: 'Save game', onClick: () => { engine.mode = 'play'; engine.autosave(true); ui.log('Game saved.', 'good'); engine.paused = false; requestLock(); } } : { label: 'Save (auto-saved at the gate of Hell)', disabled: true },
+      inRoom ? { label: 'Command line (classic mode)', onClick: () => { engine.paused = false; engine.level.openConsole(); } } : null,
       { label: 'How to play', onClick: () => { showHelp(); } },
       { label: 'Settings', onClick: () => showSettings() },
       { label: 'Achievements', onClick: () => showAchievements() },
