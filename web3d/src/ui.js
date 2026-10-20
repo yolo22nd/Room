@@ -52,6 +52,19 @@ export function setHearts(cur, max) {
 export function setInventory(items) {
   els.inventory.innerHTML = items.map(i => `<span class="inv">${i}</span>`).join('');
 }
+export function fmtTime(t) {
+  const m = Math.floor(t / 60), s = Math.floor(t % 60), d = Math.floor((t * 10) % 10);
+  return `${m}:${String(s).padStart(2, '0')}.${d}`;
+}
+export function fmtDelta(d) { return (d < 0 ? '−' : '+') + fmtTime(Math.abs(d)); }
+let timerEls = null;
+export function setTimer(t, sub = '', cls = '') {
+  if (!timerEls) timerEls = { box: document.getElementById('timer'), t: document.getElementById('timer-t'), s: document.getElementById('timer-s') };
+  if (t === null) { timerEls.box.classList.add('hidden'); return; }
+  timerEls.box.classList.remove('hidden');
+  timerEls.t.textContent = fmtTime(t);
+  if (timerEls.s.textContent !== sub) { timerEls.s.textContent = sub; timerEls.s.className = cls; }
+}
 export function setObjective(html) { els.objective.innerHTML = html ? `Goal: <b>${html}</b>` : ''; }
 export function setVignette(mode) { els.vignette.className = mode || ''; }
 export function setCooldown(frac) {

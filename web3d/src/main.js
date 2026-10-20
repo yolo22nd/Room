@@ -8,12 +8,12 @@ import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad
 import * as ui from './ui.js';
 import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio.js';
 import { Player } from './player.js';
-import { RoomLevel, freshRoomState } from './game.js';
+import { RoomLevel, freshRoomState, todaySeed } from './game.js';
 import { HellLevel } from './hell.js';
 import { INTRO, HELL_ENTRY, ENDING } from './story.js';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
-  ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock,
+  ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun,
 } from './save.js';
 
 const canvas = document.getElementById('view');
@@ -61,9 +61,19 @@ const engine = {
   level: null,
   mode: 'title',          // title | play | dead | transition
   paused: false,
-  stats: { time: 0, deaths: 0, conjured: 0 },
+  stats: { time: 0, deaths: 0, conjured: 0, splits: {} },
   roomState: null,
   saveT: 0,
+
+  split(name) {
+    const sp = this.stats.splits || (this.stats.splits = {});
+    if (sp[name] !== undefined) return;
+    sp[name] = this.stats.time;
+    const st = this.roomState || {};
+    const best = bestFor(st.mode || 'normal', st.seed);
+    const b = best && best.splits && best.splits[name];
+    this.splitMsg = { text: `${name} ${ui.fmtTime(sp[name])}${b !== undefined ? '  ' + ui.fmtDelta(sp[name] - b) : ''}`, cls: b === undefined ? '' : (sp[name] <= b ? 'ahead' : 'behind'), until: this.stats.time + 4 };
+  },
 
   setLevel(level) {
     if (demo) { demo.deactivate(); demo = null; }
@@ -113,6 +123,7 @@ const engine = {
     sfx.roar();
     await ui.story(HELL_ENTRY);
     this.mode = 'play';
+    this.split('Hell');
     this.setLevel(new HellLevel(this, s));
   },
 
@@ -120,7 +131,10 @@ const engine = {
     this.mode = 'transition';
     releaseLock();
     ui.flash('#ffffff', 1, 2000);
+    this.split('Escape');
     if (this.stats.time < 15 * 60) unlock('speed');
+    if (this.roomState && this.roomState.mode === 'hard') unlock('hardmode');
+    if (this.roomState && this.roomState.mode === 'daily') unlock('daily');
     clearSave();
     await ui.story(ENDING);
     showEnding();
@@ -159,7 +173,7 @@ function buildDemo() {
 
 function showTitle() {
   engine.mode = 'title'; engine.paused = false;
-  ui.closeDialog(true); ui.showHUD(false); releaseLock();
+  ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
   setHeartbeat(0);
   if (engine.level) engine.level.deactivate();
   demo = buildDemo(); engine.level = null;
@@ -180,7 +194,7 @@ function showTitle() {
     </div>`, { clear: true });
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = () => { initAudio(); sfx.click(); fn(); }; };
   on('t-continue', () => continueGame());
-  on('t-new', () => { if (cont) ui.dialog({ title: 'Start over?', html: '<p>Your saved progress will be overwritten.</p>', buttons: [{ label: 'Yes, new game', cls: 'primary', onClick: newGame }, { label: 'Cancel' }] }); else newGame(); });
+  on('t-new', () => { if (cont) ui.dialog({ title: 'Start over?', html: '<p>Your saved progress will be overwritten.</p>', buttons: [{ label: 'Yes, new game', cls: 'primary', onClick: chooseMode }, { label: 'Cancel' }] }); else chooseMode(); });
   on('t-help', () => showHelp());
   on('t-ach', () => showAchievements());
   on('t-settings', () => showSettings());
@@ -189,14 +203,30 @@ function showTitle() {
   addEventListener('pointerdown', kick);
 }
 
-async function newGame() {
+function chooseMode() {
+  const seed = todaySeed();
+  const fmtBest = (b) => (b ? ` · best ${ui.fmtTime(b.total)}` : '');
+  ui.dialog({
+    title: 'New game',
+    html: '<p class="muted">Hard mode: one heart, a faster Kraken that needs five pins. Daily room: the same seeded room for everyone today — pre-built furniture and a key hidden somewhere new.</p>',
+    buttons: [
+      { label: `Normal${fmtBest(bestFor('normal'))}`, cls: 'primary', onClick: () => newGame('normal') },
+      { label: `Hard — one heart${fmtBest(bestFor('hard'))}`, onClick: () => newGame('hard') },
+      { label: `Daily room ${seed}${fmtBest(bestFor('daily', seed))}`, onClick: () => newGame('daily', seed) },
+      { label: 'Cancel' },
+    ],
+  });
+}
+
+async function newGame(mode = 'normal', seed = null) {
   initAudio();
   ui.hideScreen();
   engine.mode = 'transition';
-  engine.stats = { time: 0, deaths: 0, conjured: 0 };
+  engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
   playAmbience('dark');
   await ui.story(INTRO);
-  startRoom(freshRoomState());
+  startRoom(freshRoomState(mode, seed));
+  if (mode !== 'normal') ui.log(mode === 'hard' ? 'HARD MODE: one heart. Don\'t look at your feet.' : `DAILY ROOM ${seed}: someone has already decorated...`, 'warn');
   ui.log('Total darkness. You can\'t see a thing, and you are far too scared to move.', 'lore');
   ui.log(`Open your spellbook (${input.touch ? 'Spells button' : 'Q'}) and conjure something.`);
 }
@@ -231,13 +261,23 @@ function continueGame(fromDeath = false) {
 
 function showEnding() {
   engine.mode = 'title';
-  ui.showHUD(false);
+  ui.showHUD(false); ui.setTimer(null);
   const t = engine.stats.time;
-  const mm = Math.floor(t / 60), ss = Math.floor(t % 60).toString().padStart(2, '0');
+  const st = engine.roomState || {};
+  const mode = st.mode || 'normal';
+  const prev = bestFor(mode, st.seed);
+  const splits = engine.stats.splits || {};
+  const record = recordRun(mode, st.seed, t, splits);
+  const rows = Object.entries(splits).map(([k, v]) => {
+    const b = prev && prev.splits && prev.splits[k];
+    return `<tr><td>${k}</td><td>${ui.fmtTime(v)}</td><td class="${b === undefined ? '' : v <= b ? 'ahead' : 'behind'}">${b === undefined ? '' : ui.fmtDelta(v - b)}</td></tr>`;
+  }).join('');
+  const modeName = mode === 'daily' ? `daily ${st.seed}` : mode;
   ui.screen(`<div class="title-wrap">
     <h1 style="font-size:clamp(36px,7vw,64px)">You escaped</h1>
-    <div class="sub">kraken 2.0 · nailed</div>
-    <div class="stats">Time ........ ${mm}:${ss}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
+    <div class="sub">kraken 2.0 · nailed <span class="mode-badge">${modeName}</span></div>
+    <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
+    ${rows ? `<table class="splits">${rows}</table>` : ''}
     <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-title">Back to title</button></div>
     <div class="foot">Thanks for playing. Part 3: the rematch — someday.</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
@@ -272,6 +312,7 @@ function showSettings() {
       <div class="setting"><span>Music</span><input type="range" id="s-music" min="0" max="1" step="0.05" value="${settings.music}"></div>
       <div class="setting"><span>Sound effects</span><input type="range" id="s-sfx" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
       <div class="setting"><span>Look sensitivity</span><input type="range" id="s-sens" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
+      <div class="setting"><span>Speedrun timer</span><input type="checkbox" id="s-timer" ${settings.showTimer ? 'checked' : ''}></div>
       <div class="setting"><span>Invert look Y</span><input type="checkbox" id="s-inv" ${settings.invertY ? 'checked' : ''}></div>
       <div class="setting"><span>Graphics</span><select id="s-q"><option value="high" ${settings.quality === 'high' ? 'selected' : ''}>High (shadows, bloom)</option><option value="low" ${settings.quality === 'low' ? 'selected' : ''}>Low (faster)</option></select></div>`,
     buttons: [{ label: 'Done' }],
@@ -281,6 +322,7 @@ function showSettings() {
     settings.sfx = +box.querySelector('#s-sfx').value;
     settings.sensitivity = +box.querySelector('#s-sens').value;
     settings.invertY = box.querySelector('#s-inv').checked;
+    settings.showTimer = box.querySelector('#s-timer').checked;
     settings.quality = box.querySelector('#s-q').value;
     setVolumes(settings.music, settings.sfx);
     player.sensitivity = settings.sensitivity; player.invertY = settings.invertY;
@@ -344,6 +386,11 @@ function frame() {
   } else if (engine.level) {
     if (playing) {
       engine.stats.time += dt;
+      const st = engine.roomState;
+      if (settings.showTimer || (st && st.mode !== 'normal')) {
+        const m = engine.splitMsg && engine.splitMsg.until > engine.stats.time ? engine.splitMsg : null;
+        ui.setTimer(engine.stats.time, m ? m.text : (st && st.mode !== 'normal' ? (st.mode === 'daily' ? 'daily ' + st.seed : 'hard') : ''), m ? m.cls : '');
+      } else ui.setTimer(null);
       player.update(dt);
       engine.level.update(dt);
       if (engine.pendingSave) engine.autosave();

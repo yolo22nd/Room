@@ -17,16 +17,43 @@ const SEATS = { bed: 0.95, sofa: 1.0, chair: 1.1, cushion: 0.75, dine: 1.05, tab
 const ROT_FRONT = (r) => new THREE.Vector3(Math.sin(r * Math.PI / 2), 0, Math.cos(r * Math.PI / 2));
 const SIDE_FRONT_ROT = { s: 0, e: 1, n: 2, w: 3 }; // rotation index whose front faces that wall
 
-export function freshRoomState() {
-  return {
+export function seededRandom(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+
+export function todaySeed() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** mode: 'normal' | 'hard' | 'daily'. The daily room is seeded by date. */
+export function freshRoomState(mode = 'normal', seed = null) {
+  const hearts = mode === 'hard' ? 1 : 3;
+  const st = {
+    mode, seed,
     placed: {},                 // key -> { type, slot, rot }
     lamp: null,                 // 'hand' | {x, z} | null
     lampOn: false,
-    hearts: 3, maxHearts: 3,
+    hearts, maxHearts: hearts,
     shoes: 'none', clothes: 'old',
     flags: { books: [] },
     player: { x: 0, z: 0, yaw: 0 },
   };
+  if (mode === 'daily') {
+    // some furniture is already here, and the invisible key hides in a random cell
+    const rnd = seededRandom('room-' + seed);
+    const pool = ['bed', 'sofa', 'chair', 'table', 'dine', 'shelf', 'closet', 'shoerack'];
+    const cells = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+    const pick = (arr) => arr.splice(Math.floor(rnd() * arr.length), 1)[0];
+    for (let i = 0; i < 4; i++) {
+      const type = pick(pool), slot = pick(cells);
+      st.placed[type] = { type, slot, rot: 0, auto: true };
+    }
+    st.flags.keyCell = ['nw', 'n', 'ne', 'w', 'm', 'e', 'sw', 's', 'se'][Math.floor(rnd() * 9)];
+  }
+  return st;
 }
 
 export class RoomLevel {
@@ -95,7 +122,10 @@ export class RoomLevel {
   }
 
   restore() {
-    for (const [key, p] of Object.entries(this.state.placed)) this.spawn(p.type, p.slot, p.rot, { instant: true, key });
+    for (const [key, p] of Object.entries(this.state.placed)) {
+      if (p.auto) { p.rot = this.defaultRot(p.type, p.slot); delete p.auto; }
+      this.spawn(p.type, p.slot, p.rot, { instant: true, key });
+    }
     this.placeLantern();
     const s = this.state.flags;
     if (s.showcaseOpen) this.openShowcaseVisual(true);
@@ -628,7 +658,7 @@ export class RoomLevel {
     this.state.lampOn = !this.state.lampOn;
     this.state.lampOn ? sfx.lampOn() : sfx.lampOff();
     ui.log(this.state.lampOn ? 'You turned on the lamp.' : 'You turned off the lamp.');
-    if (this.state.lampOn) unlock('light');
+    if (this.state.lampOn) { unlock('light'); this.engine.split('Light'); }
     this.refreshLighting(); this.refreshHUD();
   }
 
@@ -854,7 +884,7 @@ export class RoomLevel {
     this.menu('Showcase', 'Inside, the skeleton of the legendary hell monster Kraken. It\'s smaller than you imagined. Below it, a fossil with the impression of some kind of giant nail.', [
       { label: 'Study the skeleton', onClick: () => ui.log('Five arms, one enormous eye socket. The arms end in flat pads — as if made for slamming.', 'lore') },
       { label: fl.nailKnown ? 'Study the fossil again' : 'Study the nail fossil', onClick: () => this.studyFossil() },
-      !fl.hellKeyTaken ? { label: 'Take the key with an "H" on it', onClick: () => { fl.hellKeyTaken = true; e.group.userData.hkey.visible = false; sfx.key(); ui.log('You took the key with an "H" inscribed on it.', 'good'); this.refreshHUD(); this.engine.autosave(); } } : null,
+      !fl.hellKeyTaken ? { label: 'Take the key with an "H" on it', onClick: () => { fl.hellKeyTaken = true; this.engine.split('H key'); e.group.userData.hkey.visible = false; sfx.key(); ui.log('You took the key with an "H" inscribed on it.', 'good'); this.refreshHUD(); this.engine.autosave(); } } : null,
     ]);
   }
   studyFossil() {
@@ -914,7 +944,8 @@ export class RoomLevel {
       const fl = this.state.flags;
       if (won) {
         fl.pcWon = true; unlock('rps');
-        ui.dialog({ title: 'YOU WON!!!', html: '<div class="pc-screen">Congratulations,\nyou have cleared the first half of the game...\n\nNow here is your secret tip:\n\n"Close the PC and SEARCH the floor before moving from this spot."</div>', buttons: [{ label: 'Close the PC' }] });
+        const tip = fl.keyCell ? `"Close the PC and SEARCH the floor in the ${CELL_NAMES[fl.keyCell].toUpperCase()} part of the room."` : '"Close the PC and SEARCH the floor before moving from this spot."';
+        ui.dialog({ title: 'YOU WON!!!', html: `<div class="pc-screen">Congratulations,\nyou have cleared the first half of the game...\n\nNow here is your secret tip:\n\n${tip}</div>`, buttons: [{ label: 'Close the PC' }] });
         this.engine.autosave();
       } else {
         ui.dialog({ title: 'You lost!', html: '<div class="pc-screen">PC wins 3 rounds.\nIt plays a little victory jingle.</div>', buttons: [{ label: 'Rematch', onClick: () => this.rps() }, { label: 'Close' }] });
@@ -1004,13 +1035,14 @@ export class RoomLevel {
     const here = cellAt(this.player.pos.x, this.player.pos.z);
     ui.log('You start searching, placing your hands on the floor around you...');
     setTimeout(() => {
-      if (pc && pc.slot === here && !fl.showKey) {
+      const keyHere = fl.keyCell ? (fl.pcWon && fl.keyCell === here) : (pc && pc.slot === here);
+      if (keyHere && !fl.showKey) {
         fl.showKey = true;
         sfx.key();
         const k = makeGhostKey(); k.position.set(this.player.pos.x + this.player.forward().x * 0.6, 0.3, this.player.pos.z + this.player.forward().z * 0.6);
         this.scene.add(k); this.ghostKeyFx = { obj: k, t: 0 };
         ui.log('After a few minutes of searching, you find an INVISIBLE KEY! You pick it up.', 'good');
-        unlock('invisible');
+        unlock('invisible'); this.engine.split('Invisible key');
         this.refreshHUD(); this.engine.autosave();
       } else {
         ui.log('After a few minutes of searching, you find nothing... you quit searching.');
@@ -1140,7 +1172,7 @@ export class RoomLevel {
     else if (s.lamp !== 'hand') o = 'Pick your lamp back up.';
     else if (!s.lampOn) o = 'Turn on the lamp (F).';
     else if (!fl.showKey && !fl.pcWon) o = 'Find a way out. Conjure things — the books, or a PC, might know something.';
-    else if (!fl.showKey) o = 'Search the floor where the PC stands (G).';
+    else if (!fl.showKey) o = fl.keyCell ? `Search the floor in the ${CELL_NAMES[fl.keyCell]} part of the room (G).` : 'Search the floor where the PC stands (G).';
     else if (!fl.hellKeyTaken) o = 'The invisible key opens something made of glass.';
     else if (!fl.nailKnown) o = 'Study the nail fossil in the showcase.';
     else {

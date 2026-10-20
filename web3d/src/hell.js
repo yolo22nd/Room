@@ -11,7 +11,6 @@ const ARENA_C = new THREE.Vector3(0, 0, 4);
 const ARENA_R = 16;
 const KRAKEN_POS = new THREE.Vector3(0, 0, -15);
 const TENTACLES = 5;
-const PINS_NEEDED = 4;
 const SEGMENTS = 14;
 const G = 22;
 
@@ -49,6 +48,8 @@ export class HellLevel {
     this.hitsTaken = 0;
     this.burnT = 0; this.slipperT = 0;
     this.projectiles = [];
+    this.hard = state.mode === 'hard';
+    this.pinsNeeded = this.hard ? 5 : 4;
     this.build();
 
     this.player.walkable = (x, z) => Math.hypot(x - ARENA_C.x, z - ARENA_C.z) < ARENA_R - 0.8 - RADIUS && !(Math.hypot(x - KRAKEN_POS.x, z - KRAKEN_POS.z) < 6.5);
@@ -326,7 +327,7 @@ export class HellLevel {
     free.sort((a, b) => a.root.distanceTo(pp) - b.root.distanceTo(pp) + (Math.random() - 0.5) * 6);
     const T = free[0];
     T.state = 'windup'; T.timer = 0;
-    T.windup = this.phase === 'exposed' ? 1.5 : Math.max(0.9, 1.35 - this.recoveries * 0.15);
+    T.windup = (this.phase === 'exposed' ? 1.5 : Math.max(0.9, 1.35 - this.recoveries * 0.15)) * (this.hard ? 0.8 : 1);
     T.target.set(pp.x, 0, pp.z);
     // keep the target on the platform and out of the kraken's body
     const off = new THREE.Vector3(T.target.x - ARENA_C.x, 0, T.target.z - ARENA_C.z);
@@ -417,9 +418,9 @@ export class HellLevel {
         this.drops.splice(i, 1);
         sfx.roar();
         unlock('pin');
-        ui.log(`The ${CATALOG[d.type].name.toLowerCase()} pins a tentacle to the stone! (${this.pins}/${PINS_NEEDED})`, 'good');
+        ui.log(`The ${CATALOG[d.type].name.toLowerCase()} pins a tentacle to the stone! (${this.pins}/${this.pinsNeeded})`, 'good');
         this.fx.burst(d.target.clone().setY(1), { count: 20, color: '#c9a8ff', speed: 3, size: 0.5 });
-        if (this.pins >= PINS_NEEDED && this.phase === 'fight') this.expose();
+        if (this.pins >= this.pinsNeeded && this.phase === 'fight') this.expose();
         this.refreshHUD();
         return;
       }
@@ -453,7 +454,7 @@ export class HellLevel {
 
   expose() {
     this.phase = 'exposed';
-    this.exposeT = 10;
+    this.exposeT = this.hard ? 7 : 10;
     sfx.roar();
     this.player.addShake(1);
     ui.log('KRAKEN 2.0 howls and slumps forward — its great eye hangs over the stone! Switch to the GIANT NAIL (Q / 2) and drop it on its head!', 'good');
@@ -468,7 +469,7 @@ export class HellLevel {
     ui.log('The Kraken recovers and rips two arms free! It\'s getting angrier...', 'warn');
     let freed = 0;
     for (const T of this.tentacles) {
-      if (T.state === 'pinned' && freed < 2) {
+      if (T.state === 'pinned' && freed < (this.hard ? 3 : 2)) {
         freed++;
         const o = T.pinObj; T.pinObj = null;
         this.fx.burst(o.position.clone().setY(1), { count: 16, color: '#ff8040', size: 0.5 });
@@ -487,7 +488,7 @@ export class HellLevel {
     ui.flash('#ffffff', 0.9, 900);
     sfx.roar();
     ui.log('The giant nail drives home. KRAKEN 2.0 shudders...', 'good');
-    unlock('kraken');
+    unlock('kraken'); this.engine.split('Kraken');
     if (this.hitsTaken === 0) unlock('flawless');
     this.tentacles.forEach(T => { T.state = 'limp'; T.timer = 0; if (T.warn) { this.scene.remove(T.warn); T.warn = null; } });
     this.projectiles.forEach(p => { this.scene.remove(p.obj); this.scene.remove(p.marker); });
@@ -568,7 +569,7 @@ export class HellLevel {
         this.startAttack();
         this.attackT = exposed ? 3.2 : Math.max(1.3, 2.4 - this.recoveries * 0.4 - this.pins * 0.1);
       }
-      if (this.recoveries > 0 || this.pins >= 2) {
+      if (this.hard || this.recoveries > 0 || this.pins >= 2) {
         this.fireT -= dt;
         if (this.fireT <= 0 && !exposed) { this.spitFireball(); this.fireT = Math.max(3.5, 7 - this.recoveries); }
       }
@@ -619,7 +620,7 @@ export class HellLevel {
     }
     ui.setVignette('burn');
     this.burnT += dt;
-    if (this.burnT > 9) { this.burnT = 0; sfx.sizzle(); this.hurt(1, 'burnt feet'); ui.log('Ow! Hot floor! (Shoes would have helped.)', 'warn'); }
+    if (this.burnT > (this.hard ? 6 : 9)) { this.burnT = 0; sfx.sizzle(); this.hurt(1, 'burnt feet'); ui.log('Ow! Hot floor! (Shoes would have helped.)', 'warn'); }
   }
 
   openExit() {
@@ -642,11 +643,11 @@ export class HellLevel {
     const inv = [
       `<b>${this.spell === 'furniture' ? '▶' : ''} 1</b> Furniture`,
       `<b>${this.spell === 'nail' ? '▶' : ''} 2</b> Giant Nail`,
-      `📌 Pinned <b>${this.pins}/${PINS_NEEDED}</b>`,
+      `📌 Pinned <b>${this.pins}/${this.pinsNeeded}</b>`,
     ];
     if (s.shoes !== 'none') inv.push(`👟 <b>${s.shoes}</b>`);
     ui.setInventory(inv);
-    if (this.phase === 'fight') ui.setObjective(`Pin ${PINS_NEEDED} arms with falling furniture while they rest on the stone (${this.pins}/${PINS_NEEDED}).`);
+    if (this.phase === 'fight') ui.setObjective(`Pin ${this.pinsNeeded} arms with falling furniture while they rest on the stone (${this.pins}/${this.pinsNeeded}).`);
     if (this.phase === 'exposed') ui.setObjective('Drop the GIANT NAIL right under its eye!');
     if (this.phase === 'dying') ui.setObjective('...');
   }

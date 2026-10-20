@@ -17,7 +17,22 @@ export const saveGame = (state) => write(SAVE_KEY, state);
 export const hasSave = () => !!read(SAVE_KEY);
 export function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
 
-export const defaultSettings = { music: 0.6, sfx: 0.8, sensitivity: 1, invertY: false, quality: 'high' };
+export const defaultSettings = { music: 0.6, sfx: 0.8, sensitivity: 1, invertY: false, quality: 'high', showTimer: false };
+
+// personal bests: { normal: {total, splits}, hard: {...}, daily: { 'YYYY-MM-DD': {total, splits} } }
+const BEST_KEY = 'room3d.best.v1';
+export const loadBests = () => read(BEST_KEY) || {};
+export function bestFor(mode, seed) { const b = loadBests(); return mode === 'daily' ? (b.daily || {})[seed] : b[mode]; }
+/** Records a finished run; returns true if it is a new personal best. */
+export function recordRun(mode, seed, total, splits) {
+  const b = loadBests();
+  const prev = bestFor(mode, seed);
+  if (prev && prev.total <= total) return false;
+  const run = { total, splits };
+  if (mode === 'daily') { b.daily = b.daily || {}; b.daily[seed] = run; } else b[mode] = run;
+  write(BEST_KEY, b);
+  return true;
+}
 export const loadSettings = () => ({ ...defaultSettings, ...(read(SETTINGS_KEY) || {}) });
 export const saveSettings = (s) => write(SETTINGS_KEY, s);
 export const hasSavedSettings = () => !!read(SETTINGS_KEY);
@@ -41,6 +56,8 @@ export const ACHIEVEMENTS = [
   { id: 'kraken', icon: '🦑', name: 'Kraken Nailed', desc: 'Defeat Kraken 2.0.' },
   { id: 'flawless', icon: '💎', name: 'Untouchable', desc: 'Defeat Kraken 2.0 without losing a heart in Hell.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
+  { id: 'hardmode', icon: '💀', name: 'One Heart Wonder', desc: 'Finish the game on Hard.' },
+  { id: 'daily', icon: '📅', name: 'Daily Decorator', desc: 'Escape a daily room.' },
 ];
 
 let unlocked = new Set(read(ACH_KEY) || []);
