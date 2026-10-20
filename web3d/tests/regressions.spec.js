@@ -50,3 +50,22 @@ test('blink cannot pass through a closed wall into an annex', async ({ page }) =
   });
   expect(moved).toBeCloseTo(-3.5);
 });
+
+test('photo mode keeps the held lamp lit; endless hides the lamp button; runs show their exact time', async ({ page }) => {
+  await boot(page, { save: roomSave('room') });
+  await page.click('#t-continue');
+  await page.waitForFunction(() => window.__room.engine.level && window.__room.engine.mode === 'play');
+  await page.evaluate(() => window.__room.enterPhoto());
+  const lit = await page.evaluate(() => { let n = 0; window.__room.engine.camera.traverseVisible((o) => { if (o.isLight) n++; }); return n; });
+  expect(lit).toBeGreaterThan(0);
+  await page.evaluate(() => window.__room.exitPhoto());
+  await page.evaluate(() => window.__room.showTitle());
+  await page.click('#t-endless');
+  await page.click('button:has-text("New run")');
+  await page.waitForFunction(() => window.__room.engine.run);
+  await expect(page.locator('#touch-buttons [data-act=lamp]')).toHaveClass(/hidden/);
+  await page.evaluate(() => { const e = window.__room.engine; e.stats.time = 12.34; e.roomState.hearts = 1; e.damage(1, 'test'); });
+  await page.waitForSelector('#screen h1');
+  await expect(page.locator('#screen .stats')).toContainText('0:12.3');
+  await expect(page.locator('#screen tr.mine')).toContainText('0:12.3');
+});

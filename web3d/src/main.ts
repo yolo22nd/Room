@@ -42,6 +42,7 @@ import { CoopLevel } from './coop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 import { setIntensity, setSurface } from './audio';
+import { knows } from './spells';
 
 const CHAPTERS_KEY = 'room3d.chapters.v1';
 const chaptersDone = (): string[] => { try { return JSON.parse(localStorage.getItem(CHAPTERS_KEY) || '[]'); } catch (e) { return []; } };
@@ -276,14 +277,14 @@ const engine: any = {
     this.mode = 'title';
     releaseLock(); setHeartbeat(0);
     ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null);
-    const entry = { depth: r.depth, time: Math.round(this.stats.time), daily: r.daily ? todaySeed() : null, at: Date.now() };
+    const entry = { depth: r.depth, time: Math.round(this.stats.time * 10) / 10, daily: r.daily ? todaySeed() : null, at: Date.now() };
     const board = loadRuns(); board.push(entry); board.sort((a, b) => b.depth - a.depth || a.time - b.time);
     saveRuns(board.slice(0, 20));
     const rank = board.indexOf(entry) + 1;
     ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Run over</h1>
       <div class="sub">${ui.escapeHtml(why || '')}</div>
-      <div class="stats">Rooms cleared ${r.depth}<br>Time ........ ${ui.fmtTime(this.stats.time)}<br>Upgrades .... ${r.upgrades.map(id => UPGRADES.find(u => u.id === id).icon).join(' ') || '—'}<br>Rank ........ #${rank}${r.daily ? ' (daily)' : ''}</div>
-      ${leaderboardHtml()}
+      <div class="stats">Rooms cleared ${r.depth}<br>Time ........ ${ui.fmtTime(entry.time)}<br>Upgrades .... ${r.upgrades.map(id => UPGRADES.find(u => u.id === id).icon).join(' ') || '—'}<br>Rank ........ #${rank}${r.daily ? ' (daily)' : ''}</div>
+      ${leaderboardHtml(entry.at)}
       <div class="actions" style="margin-top:18px"><button class="btn primary" id="r-again">New run</button><button class="btn" id="r-title">Back to title</button></div></div>`);
     document.getElementById('r-again').onclick = () => { sfx.click(); this.startRun(false); };
     document.getElementById('r-title').onclick = () => { sfx.click(); showTitle(); };
@@ -317,6 +318,17 @@ const engine: any = {
     this.level = level;
     renderPass.scene = level.scene;
     level.activate();
+    this.refreshTouchButtons();
+  },
+
+  // Lamp and Search only mean something in the room; elsewhere Search casts Shrink.
+  refreshTouchButtons() {
+    const lv = this.level, room = lv instanceof RoomLevel;
+    const searchLabel = room || (lv instanceof RogueRoom && lv.kind === 'hunt') ? 'Search' : this.roomState && this.roomState.flags && knows(this.roomState, 'shrink') ? 'Shrink' : '';
+    document.querySelectorAll<any>('#touch-buttons .tbtn').forEach(b => {
+      if (b.dataset.act === 'lamp') b.classList.toggle('hidden', !room);
+      if (b.dataset.act === 'search') { b.classList.toggle('hidden', !searchLabel); if (searchLabel) b.textContent = searchLabel; }
+    });
   },
 
   damage(n, why) {
@@ -807,7 +819,7 @@ function showEnding(kind = 'escape') {
     <div class="sub">${ENDINGS[kind].sub} <span class="mode-badge">${modeName}</span></div>
     <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
     ${rows ? `<table class="splits">${rows}</table>` : ''}
-    <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button>${['apprentice', 'rival', 'true'].includes(kind) ? '<button class="btn primary" id="e-lessons">▶ Part 4: The Three Lessons</button>' : ''}<button class="btn" id="e-title">Back to title</button></div>
+    <div class="actions" style="margin-top:22px">${['apprentice', 'rival', 'true'].includes(kind) ? '<button class="btn primary" id="e-lessons">▶ Part 4: The Three Lessons</button>' : ''}<button class="btn" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button><button class="btn" id="e-title">Back to title</button></div>
     <div class="foot">${ENDINGS[kind].foot}<br>Endings found: ${seenEndings().length}/${ENDING_IDS.length}</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
   document.getElementById('e-end').onclick = () => showEndings();
@@ -818,10 +830,10 @@ function showEnding(kind = 'escape') {
 const RUNS_KEY = 'room3d.runs.v1';
 function loadRuns(): any[] { try { return JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); } catch (e) { return []; } }
 function saveRuns(b) { try { localStorage.setItem(RUNS_KEY, JSON.stringify(b)); } catch (e) { /* ignore */ } }
-function leaderboardHtml() {
+function leaderboardHtml(mine = 0) {
   const b = loadRuns().slice(0, 8);
   if (!b.length) return '';
-  return `<table class="splits">${b.map((e, i) => `<tr><td>#${i + 1} ${e.daily ? '📅 ' + e.daily : '♾️'}</td><td>${e.depth} rooms</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
+  return `<table class="splits">${b.map((e, i) => `<tr${e.at === mine ? ' class="mine"' : ''}><td>#${i + 1} ${e.daily ? '📅 ' + e.daily : '♾️'}</td><td>${e.depth} rooms</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
 }
 function codeBox(id, value = '', readonly = false) {
   return `<textarea id="${id}" rows="4" ${readonly ? 'readonly' : ''} spellcheck="false" style="width:100%;font:11px var(--mono);padding:8px;border-radius:8px;border:1px solid #45355e;background:#0d0a12;color:var(--good);resize:vertical">${value}</textarea>`;
@@ -964,7 +976,7 @@ function showSettings() {
       <div class="settings-section">Controls</div>
       <div class="setting"><span>Look sensitivity</span><input type="range" id="s-sens" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
       <div class="setting"><span>Invert look Y</span>${chk('s-inv', settings.invertY)}</div>
-      <div class="setting"><span>Keyboard bindings</span><button class="btn" id="s-keys" style="padding:6px 12px">Remap keys…</button></div>
+      ${input.touch ? '' : '<div class="setting"><span>Keyboard bindings</span><button class="btn" id="s-keys" style="padding:6px 12px">Remap keys…</button></div>'}
       <div class="settings-section">Display</div>
       <div class="setting"><span>Graphics</span>${sel('s-q', [['high', 'High (shadows, bloom)'], ['low', 'Low (faster)']], settings.quality)}</div>
       <div class="setting"><span>Text size</span>${sel('s-text', [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']], settings.textScale)}</div>
@@ -998,7 +1010,7 @@ function showSettings() {
     saveSettings(settings);
   };
   box.querySelectorAll<any>('input,select').forEach(el => el.addEventListener('input', upd));
-  box.querySelector<any>('#s-keys').addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
+  box.querySelector<any>('#s-keys')?.addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
 }
 
 let activeGrab = null;

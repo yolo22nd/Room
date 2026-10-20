@@ -21,7 +21,19 @@ export function showHUD(on) {
   els.touch.classList.toggle('hidden', !on || !document.body.classList.contains('touch'));
 }
 
+// Keyboard hints in story/log text, reworded for the touch buttons.
+const TOUCH_WORDS: [RegExp, string][] = [
+  [/\((?:Q \/ 2|2 \/ Q)\b/g, '(Spells'], [/\bQ \/ 2\b|\b2 \/ Q\b/g, 'Spells'],
+  [/\[Q\]|\(Q\)/g, '(Spells button)'], [/\bEsc menu\b/g, 'pause menu'], [/\(E\)/g, '(Use)'],
+];
+export function touchText(text: string) {
+  if (!document.body.classList.contains('touch')) return text;
+  for (const [re, w] of TOUCH_WORDS) text = text.replace(re, w);
+  return text;
+}
+
 export function log(text, cls = '') {
+  text = touchText(text);
   const d = document.createElement('div');
   d.className = 'line ' + cls; d.textContent = text;
   els.log.appendChild(d);
@@ -95,7 +107,7 @@ export function setBoss(b) {
   bossEls.name.textContent = b.name;
   bossEls.fill.style.width = Math.max(0, b.frac * 100) + '%';
 }
-export function setObjective(html) { els.objective.innerHTML = html ? `Goal: <b>${html}</b>` : ''; }
+export function setObjective(html) { els.objective.innerHTML = html ? `Goal: <b>${touchText(html)}</b>` : ''; }
 export function setVignette(mode) { els.vignette.className = mode || ''; }
 export function setCooldown(frac) {
   if (frac <= 0) { els.cooldown.classList.add('hidden'); return; }
@@ -147,6 +159,8 @@ export function dialog({ title = '', html = '', buttons = [], onClose = null, di
   });
   if (buttons.length) box.appendChild(acts);
   wrap.appendChild(box); wrap.classList.remove('hidden');
+  // tall dialog: keep short button rows on screen
+  if (buttons.length && box.scrollHeight > box.clientHeight + 4 && acts.offsetHeight < box.clientHeight * 0.45) acts.classList.add('sticky');
   const padOn = navigator.getGamepads && [...navigator.getGamepads()].some(p => p && p.connected);
   if (padOn) setTimeout(() => { const f = box.querySelector<any>('button:not([disabled])'); if (f) f.focus(); }, 0);
   dialogKeyHandler = (e) => {

@@ -32,11 +32,13 @@ export class PhotoMode {
     this.fov0 = cam.fov;
     this.parent = cam.parent;
     // detach so the held lantern doesn't block the shot
-    this.hidden = cam.children.filter(c => c.visible);
+    // (only the visible models: its light stays on, or the shot goes black)
+    this.hidden = [];
+    cam.traverse((o: any) => { if ((o.isMesh || o.isSprite || o.isPoints) && o.visible) this.hidden.push(o); });
     this.hidden.forEach(c => { c.visible = false; });
     this.render();
     this.panel.classList.remove('hidden');
-    document.getElementById('hud').classList.add('photo');
+    document.getElementById('hud').classList.add('photo'); document.body.classList.add('photo');
   }
 
   exit() {
@@ -46,7 +48,7 @@ export class PhotoMode {
     this.hidden.forEach(c => { c.visible = true; });
     this.canvas.style.filter = '';
     this.panel.classList.add('hidden');
-    document.getElementById('hud').classList.remove('photo');
+    document.getElementById('hud').classList.remove('photo'); document.body.classList.remove('photo');
   }
 
   setFilter(f) { this.filter = f; this.canvas.style.filter = FILTERS[f].css === 'none' ? '' : FILTERS[f].css; this.render(); }
