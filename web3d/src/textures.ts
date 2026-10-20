@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Canvas-generated textures so the game ships with zero image assets.
 
-function canvas(w, h = w) {
+function canvas(w: number, h = w): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   return [c, c.getContext('2d')];
 }

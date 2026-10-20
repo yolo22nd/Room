@@ -25,7 +25,7 @@ export const defaultSettings = { music: 0.6, sfx: 0.8, sensitivity: 1, invertY: 
 // personal bests: { normal: {total, splits}, hard: {...}, daily: { 'YYYY-MM-DD': {total, splits} } }
 const BEST_KEY = 'room3d.best.v1';
 export const loadBests = () => read(BEST_KEY) || {};
-export function bestFor(mode, seed) { const b = loadBests(); return mode === 'daily' ? (b.daily || {})[seed] : b[mode]; }
+export function bestFor(mode, seed?) { const b = loadBests(); return mode === 'daily' ? (b.daily || {})[seed] : b[mode]; }
 /** Records a finished run; returns true if it is a new personal best. */
 export function recordRun(mode, seed, total, splits) {
   const b = loadBests();
@@ -76,7 +76,7 @@ export const ACHIEVEMENTS = [
 ];
 
 let unlocked = new Set(read(ACH_KEY) || []);
-let onUnlock = () => {};
+let onUnlock: (a: any) => void = () => {};
 
 export function setAchievementListener(fn) { onUnlock = fn; }
 export function unlock(id) {

@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import { input, moveVector } from './input.js';
-import { sfx } from './audio.js';
-import { A11Y } from './a11y.js';
+import { input, moveVector } from './input';
+import { sfx } from './audio';
+import { A11Y } from './a11y';
 
 export const RADIUS = 0.3;
 const EYE = 1.62;
 
 export class Player {
+  [key: string]: any;
   constructor(camera) {
     this.camera = camera;
     this.pos = new THREE.Vector3(0, 0, 0);

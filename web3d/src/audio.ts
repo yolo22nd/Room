@@ -1,7 +1,7 @@
 // Procedural audio: everything is synthesised with WebAudio, no asset files.
 
 let ctx = null;
-let capHook = () => {};
+let capHook: (t: string) => void = () => {};
 export function setCaptionHook(fn) { capHook = fn; }
 const cap = (t) => capHook(t);
 let master, musicBus, sfxBus;
@@ -13,7 +13,7 @@ const settings = { music: 0.6, sfx: 0.8 };
 
 export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext;
+  const AC = window.AudioContext || (window as any).webkitAudioContext;
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);

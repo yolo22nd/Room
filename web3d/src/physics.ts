@@ -23,6 +23,7 @@ const STEP = 1 / 60;
 const _q = new THREE.Quaternion();
 
 export class PhysicsWorld {
+  [key: string]: any;
   constructor(gravity = -20) {
     const R = RAPIER;
     this.R = R;

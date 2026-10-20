@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { woodFloor, wallpaper, plaster, tiles, brick, portal, glowSprite } from './textures.js';
-import { box, cyl, materials as M } from './models.js';
-import { screenCanvas } from './textures.js';
+import { woodFloor, wallpaper, plaster, tiles, brick, portal, glowSprite } from './textures';
+import { box, cyl, materials as M } from './models';
+import { screenCanvas } from './textures';
 
 export const CELL = 3;
 export const HALF = 4.5;
@@ -64,6 +64,7 @@ function tiledBox(w, h, d, mat, density = 0.5) {
 function repeatTex(t) { const c = t.clone(); c.repeat.set(1, 1); c.needsUpdate = true; return c; }
 
 export class Room {
+  [key: string]: any;
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group(); scene.add(this.group);
@@ -190,7 +191,7 @@ export class Room {
 
     const light = new THREE.PointLight(look.light, look.power, 9, 1.6);
     light.position.set(0, WALL_H - 0.4, cz); a.add(light);
-    const info = { type, side, group: a, light, interactives: [], obstacles: [], z0, z1, cz };
+    const info: any = { type, side, group: a, light, interactives: [], obstacles: [], z0, z1, cz };
     const addObs = (x0, x1, za, zb) => info.obstacles.push(localRectToWorld(side, x0, x1, za, zb));
 
     if (type === 'bathroom') {
@@ -211,7 +212,7 @@ export class Room {
       water.position.set(0, 0.06, 0.13); water.visible = false; tap.add(water);
       const mirror = box(0.6, 0.8, 0.02, M.mirror, 0, 1.6, -0.22, s);
       for (const m of [basin, spout, handle, water, mirror]) m.userData.owner = 'tap';
-      tap.traverse(o => { if (o.isMesh) o.userData.owner = 'tap'; });
+      tap.traverse((o: any) => { if (o.isMesh) o.userData.owner = 'tap'; });
       info.interactives.push(basin, spout, handle, mirror);
       info.water = water;
       addObs(-0.7, 0.1, z1, z1 + 0.65);
@@ -277,7 +278,7 @@ export class Room {
     const info = this.annexes[side];
     if (!info) return;
     this.group.remove(info.group);
-    info.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    info.group.traverse((o: any) => { if (o.geometry) o.geometry.dispose(); });
     delete this.annexes[side];
   }
 

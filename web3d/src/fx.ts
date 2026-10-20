@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { glowSprite } from './textures.js';
+import { glowSprite } from './textures';
 
 // Tiny particle/debris manager shared by the levels.
 export class FX {
+  [key: string]: any;
   constructor(scene) { this.scene = scene; this.items = []; }
 
   burst(pos, { count = 16, color = '#ffffff', speed = 2, life = 0.8, size = 0.25, gravity = 0, up = 0.5, additive = true, spread = 1 } = {}) {

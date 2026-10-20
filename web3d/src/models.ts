@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { fabric, screenCanvas } from './textures.js';
+import { fabric, screenCanvas } from './textures';
 
 // Everything that can be conjured. kind: floor = 3x3 grid cell, wall = centre
 // of a wall, beyond = an annex room outside a wall, hand = lands in your hand.
@@ -298,7 +298,7 @@ export function buildJunk(type) {
 export function buildObject(type) {
   const g = builders[type]();
   g.userData.type = type;
-  g.traverse(o => { if (o.isMesh) o.userData.owner = type; });
+  g.traverse((o: any) => { if (o.isMesh) o.userData.owner = type; });
   return g;
 }
 
@@ -315,7 +315,7 @@ export function buildDoor() {
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), M.brass); knob.position.set(1.18, 1.05, 0.07); pivot.add(knob);
   const knob2 = knob.clone(); knob2.position.z = -0.07; pivot.add(knob2);
   g.userData.pivot = pivot; g.userData.leaf = leaf;
-  g.traverse(o => { if (o.isMesh) o.userData.owner = 'door'; });
+  g.traverse((o: any) => { if (o.isMesh) o.userData.owner = 'door'; });
   return g;
 }
 
@@ -327,7 +327,7 @@ export function buildTV() {
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.18, 0.7), new THREE.MeshStandardMaterial({ map: scr.tex, emissive: 0xffffff, emissiveMap: scr.tex, emissiveIntensity: 0.0 }));
   screen.position.z = 0.065; g.add(screen);
   g.userData.screen = scr; g.userData.screenMesh = screen;
-  g.traverse(o => { if (o.isMesh) o.userData.owner = 'tv'; });
+  g.traverse((o: any) => { if (o.isMesh) o.userData.owner = 'tv'; });
   return g;
 }
 
@@ -363,7 +363,7 @@ export function makeLantern() {
   for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; cyl(0.006, 0.006, 0.24, frame, Math.cos(a) * 0.08, 0.135, Math.sin(a) * 0.08, g, 4); }
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 6, 16, Math.PI), frame); handle.position.y = 0.33; g.add(handle);
   g.userData.glass = glassMat;
-  g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.userData.owner = 'lamp'; } });
+  g.traverse((o: any) => { if (o.isMesh) { o.castShadow = false; o.userData.owner = 'lamp'; } });
   return g;
 }
 
@@ -374,6 +374,6 @@ export function makeGiantNail(scale = 1) {
   const tip = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.5, 20), mat); tip.rotation.x = Math.PI; tip.position.y = 0.75; g.add(tip);
   cyl(1.6, 1.6, 0.5, mat, 0, 10.75, 0, g, 28);
   g.scale.setScalar(scale);
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.traverse((o: any) => { if (o.isMesh) o.castShadow = true; });
   return g;
 }

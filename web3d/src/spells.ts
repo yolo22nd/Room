@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import * as ui from './ui.js';
-import { sfx } from './audio.js';
+import * as ui from './ui';
+import { sfx } from './audio';
 
 // Mana costs and the three learnable spells, shared by every level.
 const COSTS = {

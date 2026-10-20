@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // A tapered tube whose spine is rebuilt every frame (tentacles). Rings are
 // oriented with parallel-transported frames so the surface doesn't twist.
 export class TaperTube {
+  [key: string]: any;
   constructor(rings, radial, radiusAt, material) {
     this.rings = rings; this.radial = radial; this.radiusAt = radiusAt;
     const pos = new Float32Array(rings * radial * 3);

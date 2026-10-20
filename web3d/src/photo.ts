@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { input, moveVector } from './input.js';
+import { input, moveVector } from './input';
 
 // Photo mode: the game freezes, the camera flies freely, and a capture is
 // saved with the chosen film filter baked in.
@@ -14,6 +14,7 @@ export const FILTERS = {
 };
 
 export class PhotoMode {
+  [key: string]: any;
   constructor(engine, canvas, panel) {
     this.engine = engine; this.canvas = canvas; this.panel = panel;
     this.active = false;

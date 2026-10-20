@@ -1,20 +1,20 @@
 import * as THREE from 'three';
-import { COL } from './a11y.js';
+import { COL } from './a11y';
 import {
   Room, CELLS, SIDES, SIDE_NAMES, CELL_NAMES, cellCenter, cellAt, sideMatrix, sideRot,
   HALF, WALL_H, GAP_W, ANNEX_W, ANNEX_D, WALL_T,
-} from './room.js';
-import { CATALOG, buildObject, buildDoor, buildTV, makeLantern, makeGhostKey, buildJunk } from './models.js';
-import { loadPhysics, PhysicsWorld } from './physics.js';
-import { SPELLS, manaCost, learn, knows, castShrink, castBlink } from './spells.js';
-import { ring } from './textures.js';
-import { RADIUS } from './player.js';
-import { FX } from './fx.js';
-import { glowSprite } from './textures.js';
-import * as ui from './ui.js';
-import { sfx, playAmbience, setHeartbeat } from './audio.js';
-import { unlock } from './save.js';
-import { BOOKS, DREAM, TV_BROADCAST, KITCHEN_NOTE, MIRROR_LINES, PC_SURF, PC_MAIL, WITCH_DIARY } from './story.js';
+} from './room';
+import { CATALOG, buildObject, buildDoor, buildTV, makeLantern, makeGhostKey, buildJunk } from './models';
+import { loadPhysics, PhysicsWorld } from './physics';
+import { SPELLS, manaCost, learn, knows, castShrink, castBlink } from './spells';
+import { ring } from './textures';
+import { RADIUS } from './player';
+import { FX } from './fx';
+import { glowSprite } from './textures';
+import * as ui from './ui';
+import { sfx, playAmbience, setHeartbeat } from './audio';
+import { unlock } from './save';
+import { BOOKS, DREAM, TV_BROADCAST, KITCHEN_NOTE, MIRROR_LINES, PC_SURF, PC_MAIL, WITCH_DIARY } from './story';
 
 const HUG = new Set(['bed', 'sofa', 'shelf', 'closet', 'shoerack', 'showcase', 'table']);
 const SEATS = { bed: 0.95, sofa: 1.0, chair: 1.1, cushion: 0.75, dine: 1.05, table: 1.1 };
@@ -35,7 +35,7 @@ export function todaySeed() {
 /** mode: 'normal' | 'hard' | 'daily'. The daily room is seeded by date. */
 export function freshRoomState(mode = 'normal', seed = null) {
   const hearts = mode === 'hard' ? 1 : 3;
-  const st = {
+  const st: any = {
     mode, seed,
     placed: {},                 // key -> { type, slot, rot }
     lamp: null,                 // 'hand' | {x, z} | null
@@ -65,6 +65,7 @@ export function freshRoomState(mode = 'normal', seed = null) {
 }
 
 export class RoomLevel {
+  [key: string]: any;
   constructor(engine, state) {
     this.engine = engine;
     this.player = engine.player;
@@ -138,7 +139,7 @@ export class RoomLevel {
   }
 
   restore() {
-    for (const [key, p] of Object.entries(this.state.placed)) {
+    for (const [key, p] of Object.entries<any>(this.state.placed)) {
       if (p.auto) { p.rot = this.defaultRot(p.type, p.slot); delete p.auto; }
       this.spawn(p.type, p.slot, p.rot, { instant: true, key });
     }
@@ -205,17 +206,17 @@ export class RoomLevel {
       group = type === 'door' ? buildDoor() : buildTV();
       group.applyMatrix4(sideMatrix(slot));
       if (type === 'tv') group.translateY(1.65).translateZ(0.07);
-      group.traverse(o => { if (o.isMesh) o.userData.key = key; });
+      group.traverse((o: any) => { if (o.isMesh) o.userData.key = key; });
       this.scene.add(group);
       if (type === 'door') this.room.setPlug(slot, false);
     } else if (kind === 'beyond') {
       annex = this.room.addAnnex(type, slot);
       group = annex.group;
-      annex.group.traverse(o => { if (o.isMesh) o.userData.side = slot; });
+      annex.group.traverse((o: any) => { if (o.isMesh) o.userData.side = slot; });
       if (type === 'bathroom') {
         // the toilet becomes interactive
-        annex.group.children.filter(c => c.isGroup).forEach(c => c.traverse(o => { if (o.isMesh && !o.userData.owner) o.userData.owner = 'toilet'; }));
-        annex.group.traverse(o => { if (o.isMesh && o.userData.owner === 'toilet') annex.interactives.push(o); });
+        annex.group.children.filter(c => c.isGroup).forEach(c => c.traverse((o: any) => { if (o.isMesh && !o.userData.owner) o.userData.owner = 'toilet'; }));
+        annex.group.traverse((o: any) => { if (o.isMesh && o.userData.owner === 'toilet') annex.interactives.push(o); });
         if (this.state.flags.tapOn) { annex.water.visible = true; }
       }
       if (type === 'kitchen' && this.state.flags.stewCooked) annex.stew.visible = false;
@@ -283,13 +284,13 @@ export class RoomLevel {
     }
     html += '</div>';
     const box = ui.dialog({ title: '📖 Spellbook', html, wide: true });
-    box.querySelectorAll('[data-spell]').forEach(b => b.addEventListener('click', () => {
+    box.querySelectorAll<any>('[data-spell]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.spell;
       if (!knows(this.state, id)) { ui.log(`You haven't learned that spell yet. Hint: ${SPELLS[id].learn}`, 'lore'); return; }
       ui.closeDialog();
       this.castSpell(id);
     }));
-    box.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
+    box.querySelectorAll<any>('[data-type]').forEach(b => b.addEventListener('click', () => {
       const t = b.dataset.type;
       if (t === 'nail') { ui.log('The Giant Nail is far too big to conjure in here. It needs a worthy target.', 'warn'); return; }
       ui.closeDialog();
@@ -369,7 +370,7 @@ export class RoomLevel {
       b.position.set(0, WALL_H / 2, -WALL_T - ANNEX_D / 2); ghost.add(b);
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry), this.ghostEdge); edges.position.copy(b.position); ghost.add(edges);
     }
-    ghost.traverse(o => { if (o.isMesh) { o.material = this.ghostMat; o.castShadow = false; o.receiveShadow = false; o.userData.owner = null; } });
+    ghost.traverse((o: any) => { if (o.isMesh) { o.material = this.ghostMat; o.castShadow = false; o.receiveShadow = false; o.userData.owner = null; } });
     ghost.matrixAutoUpdate = true;
     this.scene.add(ghost);
     this.placing = { type, kind, ghost, rot: null, target: null };
@@ -604,7 +605,7 @@ export class RoomLevel {
   }
   hideShowcaseGlass(sc) {
     sc.group.userData.door.visible = false;
-    sc.group.traverse(o => { if (o.isMesh && o.material && o.material.opacity < 0.5 && o.material.transparent) o.visible = false; });
+    sc.group.traverse((o: any) => { if (o.isMesh && o.material && o.material.opacity < 0.5 && o.material.transparent) o.visible = false; });
   }
 
   // ------------------------------------------------- the classic CLI console
@@ -616,7 +617,7 @@ export class RoomLevel {
         <input id="cli" autocomplete="off" spellcheck="false" style="width:100%;font:16px var(--mono);padding:10px 12px;border-radius:8px;border:1px solid #45355e;background:#0d0a12;color:#7dffb2;outline:none" placeholder="what would you like to do ???">`,
       buttons: [],
     });
-    const el = box.querySelector('#cli');
+    const el = box.querySelector<any>('#cli');
     setTimeout(() => el.focus(), 30);
     el.addEventListener('keydown', (e) => {
       e.stopPropagation();
@@ -910,9 +911,9 @@ export class RoomLevel {
     const list = [];
     for (const e of this.entities.values()) {
       if (e.annex) list.push(...e.annex.interactives);
-      else e.group.traverse(o => { if (o.isMesh) list.push(o); });
+      else e.group.traverse((o: any) => { if (o.isMesh) list.push(o); });
     }
-    if (this.state.lamp && this.state.lamp !== 'hand') this.lantern.traverse(o => { if (o.isMesh) list.push(o); });
+    if (this.state.lamp && this.state.lamp !== 'hand') this.lantern.traverse((o: any) => { if (o.isMesh) list.push(o); });
     return list;
   }
 
@@ -991,7 +992,7 @@ export class RoomLevel {
     const fl = this.state.flags;
     this.menu('Dining Table', 'A long table set for guests who will never come.', [
       { label: 'Sit', onClick: () => this.sitOn('dine', e) },
-      fl.stewCooked && !fl.stewEaten ? { label: 'Eat the ember stew', onClick: () => this.eatStew(e) } : null,
+      fl.stewCooked && !fl.stewEaten ? { label: 'Eat the ember stew', onClick: () => this.eatStew() } : null,
     ]);
   }
   use_table() {
@@ -1174,7 +1175,7 @@ export class RoomLevel {
       html: `<div class="pc-screen">PROPERTY OF THE WITCH.\nENTER 3-DIGIT CODE:</div><input id="vcode" inputmode="numeric" maxlength="3" autocomplete="off" style="margin-top:10px;width:100%;font:22px var(--mono);letter-spacing:.4em;text-align:center;padding:8px;border-radius:8px;border:1px solid #1d4d2a;background:#031207;color:#59ff8a">`,
       buttons: [{ label: 'Enter', cls: 'primary', keep: true, onClick: () => check() }, { label: 'Back', onClick: back }],
     });
-    const inp = box.querySelector('#vcode');
+    const inp = box.querySelector<any>('#vcode');
     setTimeout(() => inp.focus(), 30);
     inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') check(); });
     const check = () => {
@@ -1196,7 +1197,7 @@ export class RoomLevel {
         html: `<div class="pc-screen">${last}\n\nYOU ${you}  —  ${comp} PC</div><div class="rps-row"><button class="btn" data-m="rock">🪨</button><button class="btn" data-m="paper">📄</button><button class="btn" data-m="scissors">✂️</button></div>`,
         buttons: [{ label: 'Quit game', cls: 'danger' }],
       });
-      box.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => play(b.dataset.m)));
+      box.querySelectorAll<any>('[data-m]').forEach(b => b.addEventListener('click', () => play(b.dataset.m)));
     };
     const play = (m) => {
       const c = ['rock', 'paper', 'scissors'][Math.floor(Math.random() * 3)];

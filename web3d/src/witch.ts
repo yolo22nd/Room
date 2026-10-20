@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { COL } from './a11y.js';
-import { ring, glowSprite } from './textures.js';
-import { CATALOG, buildObject, box, cyl } from './models.js';
-import { FX } from './fx.js';
-import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells.js';
-import { RADIUS } from './player.js';
-import * as ui from './ui.js';
-import { sfx, playAmbience } from './audio.js';
-import { unlock } from './save.js';
-import { WITCH_TAUNTS } from './story.js';
+import { COL } from './a11y';
+import { ring, glowSprite } from './textures';
+import { CATALOG, buildObject, box, cyl } from './models';
+import { FX } from './fx';
+import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
+import { RADIUS } from './player';
+import * as ui from './ui';
+import { sfx, playAmbience } from './audio';
+import { unlock } from './save';
+import { WITCH_TAUNTS } from './story';
 
 // Part 3: the rematch in the witch's garden.
 const ARENA_R = 15;
@@ -16,7 +16,7 @@ const STONE_R = 12;
 const STONES = 10;
 const G = 22;
 
-function canvasTex(w, h, draw, repeat) {
+function canvasTex(w, h, draw, repeat?) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
@@ -42,11 +42,12 @@ function makeWitchModel() {
   const bristles = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 10), new THREE.MeshStandardMaterial({ color: 0xc9a050, roughness: 1 }));
   bristles.rotation.x = -Math.PI / 2; bristles.position.z = -1.3; broom.add(bristles);
   g.userData.broom = broom; g.userData.brim = brim;
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.traverse((o: any) => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
 
 export class WitchLevel {
+  [key: string]: any;
   constructor(engine, state) {
     this.engine = engine;
     this.player = engine.player;
@@ -187,7 +188,7 @@ export class WitchLevel {
   }
 
   ammo() {
-    const t = Object.values(this.state.placed).map(p => p.type).filter(x => CATALOG[x] && CATALOG[x].kind === 'floor');
+    const t = Object.values<any>(this.state.placed).map(p => p.type).filter(x => CATALOG[x] && CATALOG[x].kind === 'floor');
     return t.length ? [...new Set(t)] : ['cushion'];
   }
 
@@ -312,9 +313,9 @@ export class WitchLevel {
     for (const s of others) {
       const obj = makeWitchModel();
       obj.position.set(s.x, 4, s.z);
-      obj.traverse(o => { if (o.isMesh) o.castShadow = false; });
+      obj.traverse((o: any) => { if (o.isMesh) o.castShadow = false; });
       this.scene.add(obj);
-      const c = { obj, stone: s };
+      const c: any = { obj, stone: s };
       // clones glide down alongside her
       c.from = obj.position.clone(); c.to = s.clone();
       this.clones.push(c);

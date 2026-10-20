@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import { COL } from './a11y.js';
-import { basalt, lava, ring, glowSprite, portal } from './textures.js';
-import { CATALOG, buildObject, makeGiantNail } from './models.js';
-import { FX } from './fx.js';
-import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells.js';
-import { TaperTube } from './tube.js';
-import { loadPhysics, PhysicsWorld } from './physics.js';
-import { RADIUS } from './player.js';
-import * as ui from './ui.js';
-import { sfx, playAmbience } from './audio.js';
-import { unlock } from './save.js';
+import { COL } from './a11y';
+import { basalt, lava, ring, glowSprite, portal } from './textures';
+import { CATALOG, buildObject, makeGiantNail } from './models';
+import { FX } from './fx';
+import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
+import { TaperTube } from './tube';
+import { loadPhysics, PhysicsWorld } from './physics';
+import { RADIUS } from './player';
+import * as ui from './ui';
+import { sfx, playAmbience } from './audio';
+import { unlock } from './save';
 
 const ARENA_C = new THREE.Vector3(0, 0, 4);
 const ARENA_R = 16;
@@ -45,6 +45,7 @@ function krakenSkin() {
 }
 
 export class HellLevel {
+  [key: string]: any;
   constructor(engine, state) {
     this.engine = engine;
     this.player = engine.player;
@@ -150,7 +151,7 @@ export class HellLevel {
     const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), this.eyeMat); eye2.position.set(2.3, -0.7, 4.0); head.add(eye2);
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     this.pupils = [];
-    for (const [e, r] of [[eye, 1.6], [eye2, 0.9]]) {
+    for (const [e, r] of [[eye, 1.6], [eye2, 0.9]] as [THREE.Mesh, number][]) {
       const p = new THREE.Mesh(new THREE.SphereGeometry(r * 0.45, 12, 8), pupilMat);
       p.scale.set(0.35, 1, 0.4); p.position.z = r * 0.85; e.add(p); this.pupils.push(p);
     }
@@ -290,7 +291,7 @@ export class HellLevel {
   }
 
   ammoTypes() {
-    const types = Object.values(this.state.placed).map(p => p.type).filter(t => CATALOG[t] && CATALOG[t].kind === 'floor');
+    const types = Object.values<any>(this.state.placed).map(p => p.type).filter(t => CATALOG[t] && CATALOG[t].kind === 'floor');
     return types.length ? [...new Set(types)] : ['cushion'];
   }
 

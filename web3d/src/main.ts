@@ -20,22 +20,22 @@ const GrainShader = {
     }`,
 };
 
-import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener, setBindings, getBindings, BIND_LABELS, DEFAULT_BINDS } from './input.js';
-import { A11Y } from './a11y.js';
-import { PhotoMode, FILTERS } from './photo.js';
-import { setCaptionHook } from './audio.js';
-import * as ui from './ui.js';
-import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio.js';
-import { Player } from './player.js';
-import { RoomLevel, freshRoomState, todaySeed } from './game.js';
-import { HellLevel } from './hell.js';
-import { WitchLevel } from './witch.js';
-import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share.js';
-import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story.js';
+import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener, setBindings, getBindings, BIND_LABELS, DEFAULT_BINDS } from './input';
+import { A11Y } from './a11y';
+import { PhotoMode, FILTERS } from './photo';
+import { setCaptionHook } from './audio';
+import * as ui from './ui';
+import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio';
+import { Player } from './player';
+import { RoomLevel, freshRoomState, todaySeed } from './game';
+import { HellLevel } from './hell';
+import { WitchLevel } from './witch';
+import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share';
+import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
   ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun, loadEditor, saveEditor,
-} from './save.js';
+} from './save';
 
 const canvas = document.getElementById('view');
 ui.initUI();
@@ -88,12 +88,12 @@ let photo = null;
 function initPhoto() {
   const panel = document.getElementById('photo');
   photo = new PhotoMode(engine, canvas, panel);
-  const fl = panel.querySelector('#ph-filters');
+  const fl = panel.querySelector<any>('#ph-filters');
   fl.innerHTML = Object.entries(FILTERS).map(([k, f]) => `<button class="ph-chip" data-f="${k}">${f.name}</button>`).join('');
   fl.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { sfx.click(); photo.setFilter(b.dataset.f); }));
-  panel.querySelector('#ph-fov').addEventListener('input', (e) => photo.setFov(+e.target.value));
-  panel.querySelector('#ph-shot').addEventListener('click', () => { photo.pending = true; });
-  panel.querySelector('#ph-exit').addEventListener('click', () => exitPhoto());
+  panel.querySelector<any>('#ph-fov').addEventListener('input', (e) => photo.setFov(+e.target.value));
+  panel.querySelector<any>('#ph-shot').addEventListener('click', () => { photo.pending = true; });
+  panel.querySelector<any>('#ph-exit').addEventListener('click', () => exitPhoto());
 }
 function enterPhoto() {
   if (engine.mode !== 'play' || !engine.level || photo.active) return;
@@ -124,7 +124,7 @@ function finishCapture() {
 const player = new Player(camera);
 player.sensitivity = settings.sensitivity; player.invertY = settings.invertY;
 
-const engine = {
+const engine: any = {
   camera, player, renderer,
   quality: settings.quality,
   touch: input.touch,
@@ -444,8 +444,8 @@ function editorMenu() {
   releaseLock();
   const st = engine.roomState, c = st.custom;
   const resume = () => { engine.paused = false; requestLock(); };
-  const floors = Object.entries(st.placed).filter(([, p]) => p.type !== 'door' && !['tv', 'bathroom', 'kitchen', 'hell'].includes(p.type));
-  const doors = Object.entries(st.placed).filter(([, p]) => p.type === 'door');
+  const floors = Object.entries<any>(st.placed).filter(([, p]) => p.type !== 'door' && !['tv', 'bathroom', 'kitchen', 'hell'].includes(p.type));
+  const doors = Object.entries<any>(st.placed).filter(([, p]) => p.type === 'door');
   const problems = editorProblems(st);
   ui.dialog({
     title: '🛠️ Room Editor',
@@ -470,9 +470,9 @@ function editorMenu() {
             <p class="muted">A note players see when they start (hints welcome):</p>
             <textarea id="ed-n" maxlength="400" rows="3" style="width:100%;font:14px var(--font);padding:8px;border-radius:6px;border:1px solid #45355e;background:#0d0a12;color:var(--text)">${ui.escapeHtml(c.note)}</textarea>`,
           onClose: () => { engine.paused = false; },
-          buttons: [{ label: 'Save', cls: 'primary', onClick: () => { c.title = box.querySelector('#ed-t').value.trim() || 'My Room'; c.note = box.querySelector('#ed-n').value.trim(); engine.autosave(); resume(); } }, { label: 'Back', onClick: editorMenu }],
+          buttons: [{ label: 'Save', cls: 'primary', onClick: () => { c.title = box.querySelector<any>('#ed-t').value.trim() || 'My Room'; c.note = box.querySelector<any>('#ed-n').value.trim(); engine.autosave(); resume(); } }, { label: 'Back', onClick: editorMenu }],
         });
-        box.querySelectorAll('input,textarea').forEach(el => el.addEventListener('keydown', e => e.stopPropagation()));
+        box.querySelectorAll<any>('input,textarea').forEach(el => el.addEventListener('keydown', e => e.stopPropagation()));
       } },
       { label: '▶ Test play', disabled: problems.length > 0, onClick: () => { engine.autosave(); playCustom(c, st.placed, true); } },
       { label: '🔗 Share link', disabled: problems.length > 0, onClick: () => showShare(st) },
@@ -492,7 +492,7 @@ function showShare(st) {
     onClose: () => { engine.paused = false; },
     buttons: [
       { label: '📋 Copy link', cls: 'primary', keep: true, onClick: () => {
-        const inp = box.querySelector('#share-url'); inp.select();
+        const inp = box.querySelector<any>('#share-url'); inp.select();
         const done = () => { ui.toast('Link copied!'); unlock('architect'); };
         if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => { document.execCommand('copy'); done(); });
         else { document.execCommand('copy'); done(); }
@@ -509,10 +509,10 @@ function showEnding(kind = 'escape') {
   const t = engine.stats.time;
   const st = engine.roomState || {};
   const mode = st.mode || 'normal';
-  const prev = bestFor(mode, st.seed);
+  const prev: any = bestFor(mode, st.seed);
   const splits = engine.stats.splits || {};
   const record = recordRun(mode, st.seed, t, splits);
-  const rows = Object.entries(splits).map(([k, v]) => {
+  const rows = Object.entries<any>(splits).map(([k, v]) => {
     const b = prev && prev.splits && prev.splits[k];
     return `<tr><td>${k}</td><td>${ui.fmtTime(v)}</td><td class="${b === undefined ? '' : v <= b ? 'ahead' : 'behind'}">${b === undefined ? '' : ui.fmtDelta(v - b)}</td></tr>`;
   }).join('');
@@ -573,24 +573,24 @@ function showSettings() {
     buttons: [{ label: 'Done' }],
   });
   const upd = () => {
-    settings.music = +box.querySelector('#s-music').value;
-    settings.sfx = +box.querySelector('#s-sfx').value;
-    settings.sensitivity = +box.querySelector('#s-sens').value;
-    settings.invertY = box.querySelector('#s-inv').checked;
-    settings.showTimer = box.querySelector('#s-timer').checked;
-    settings.quality = box.querySelector('#s-q').value;
-    settings.captions = box.querySelector('#s-cap').checked;
-    settings.reducedMotion = box.querySelector('#s-motion').checked;
-    settings.palette = box.querySelector('#s-pal').value;
-    settings.textScale = +box.querySelector('#s-text').value;
+    settings.music = +box.querySelector<any>('#s-music').value;
+    settings.sfx = +box.querySelector<any>('#s-sfx').value;
+    settings.sensitivity = +box.querySelector<any>('#s-sens').value;
+    settings.invertY = box.querySelector<any>('#s-inv').checked;
+    settings.showTimer = box.querySelector<any>('#s-timer').checked;
+    settings.quality = box.querySelector<any>('#s-q').value;
+    settings.captions = box.querySelector<any>('#s-cap').checked;
+    settings.reducedMotion = box.querySelector<any>('#s-motion').checked;
+    settings.palette = box.querySelector<any>('#s-pal').value;
+    settings.textScale = +box.querySelector<any>('#s-text').value;
     setVolumes(settings.music, settings.sfx);
     player.sensitivity = settings.sensitivity; player.invertY = settings.invertY;
     engine.quality = settings.quality; applyQuality();
     applyA11y();
     saveSettings(settings);
   };
-  box.querySelectorAll('input,select').forEach(el => el.addEventListener('input', upd));
-  box.querySelector('#s-keys').addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
+  box.querySelectorAll<any>('input,select').forEach(el => el.addEventListener('input', upd));
+  box.querySelector<any>('#s-keys').addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
 }
 
 const keyName = (code) => code.replace(/^Key/, '').replace(/^Digit/, '').replace('Left', ' L').replace('Right', ' R');
@@ -605,9 +605,9 @@ function showKeys() {
       { label: 'Back', onClick: showSettings },
     ],
   });
-  box.querySelectorAll('.keybind').forEach(b => b.addEventListener('click', (e) => {
+  box.querySelectorAll<any>('.keybind').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
-    box.querySelectorAll('.keybind').forEach(x => x.classList.remove('listening'));
+    box.querySelectorAll<any>('.keybind').forEach(x => x.classList.remove('listening'));
     b.classList.add('listening'); b.textContent = 'press a key…';
     const grab = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
@@ -731,7 +731,7 @@ function frame() {
 // key X drops the lamp
 
 // debug / test hook (used by automated playtests)
-window.__room = { enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
+(window as any).__room = { enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
 
 initPhoto();
 showTitle();

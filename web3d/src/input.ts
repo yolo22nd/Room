@@ -112,7 +112,7 @@ export function moveVector() {
 // moves focus, A clicks, B backs out.
 const PAD_ACTIONS = { 0: 'use', 1: 'cancel', 2: 'lamp', 3: 'book', 4: 'search', 5: 'cast', 6: 'rotate', 7: 'cast', 8: 'console', 9: 'pause' };
 let prevButtons = [];
-let onPadConnect = () => {};
+let onPadConnect: (id: string) => void = () => {};
 export function setPadListener(fn) { onPadConnect = fn; }
 addEventListener('gamepadconnected', (e) => { input.pad.connected = true; onPadConnect(e.gamepad.id); });
 addEventListener('gamepaddisconnected', () => { input.pad.connected = false; input.pad.x = input.pad.y = 0; });
@@ -121,7 +121,7 @@ const dead = (v) => (Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82);
 
 function menuNav(dir) {
   const root = !document.getElementById('dialog').classList.contains('hidden') ? document.getElementById('dialog') : document.getElementById('screen');
-  const items = [...root.querySelectorAll('button:not([disabled]), input, select')];
+  const items = [...root.querySelectorAll<any>('button:not([disabled]), input, select')];
   if (!items.length) return;
   const i = items.indexOf(document.activeElement);
   const next = items[(i + dir + items.length) % items.length] || items[0];
@@ -147,7 +147,7 @@ export function pollGamepad(dt) {
     if (edge(13) || edge(15)) menuNav(1);
     if (edge(0)) {
       const a = document.activeElement;
-      if (a && a.tagName === 'BUTTON' && a.closest('#dialog,#screen')) a.click();
+      if (a && a.tagName === 'BUTTON' && a.closest('#dialog,#screen')) (a as HTMLElement).click();
       else dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter' }));
     }
     if (edge(1)) dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
@@ -200,7 +200,7 @@ function initTouch(canvas) {
     if (lookId === null) { lookId = t.identifier; lx = t.clientX; ly = t.clientY; }
   }, { passive: false });
 
-  document.querySelectorAll('#touch-buttons .tbtn').forEach(b => {
+  document.querySelectorAll<any>('#touch-buttons .tbtn').forEach(b => {
     b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); input.actions.push(b.dataset.act); }, { passive: false });
     b.addEventListener('click', () => input.actions.push(b.dataset.act));
   });

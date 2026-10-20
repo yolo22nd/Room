@@ -1,4 +1,4 @@
-import { CATALOG } from './models.js';
+import { CATALOG } from './models';
 
 // Compact, URL-safe encoding of a custom room:
 // { v, t: title, n: note, p: [[typeIndex, slot, rot], ...], k: key-hiding entity, x: exit side }
@@ -15,7 +15,7 @@ function fromB64Url(s) {
 }
 
 export function encodeRoom(placed, custom) {
-  const p = Object.values(placed).filter(e => TYPES.includes(e.type)).map(e => [TYPES.indexOf(e.type), e.slot, e.rot]);
+  const p = Object.values<any>(placed).filter(e => TYPES.includes(e.type)).map(e => [TYPES.indexOf(e.type), e.slot, e.rot]);
   return toB64Url(JSON.stringify({ v: 1, t: custom.title || '', n: custom.note || '', p, k: custom.keyIn, x: custom.exit }));
 }
 
