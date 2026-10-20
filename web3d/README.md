@@ -110,3 +110,14 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 | `src/save.js` | save game, settings, achievements |
 
 `window.__room` exposes the engine for automated playtests.
+
+## Tests
+
+```bash
+npm test     # builds, serves on :4173 and runs the Playwright suite (headless Chromium)
+```
+
+The suite covers the title screen, the Act 1 puzzle chain, the command line, the secrets, both boss fights,
+physics (the anvil smash) and the editor's share-and-play round trip. It drives the game through
+`window.__room` because software WebGL renders slowly. CI runs it on every push that touches `web3d/`
+(`.github/workflows/web3d-tests.yml`).
