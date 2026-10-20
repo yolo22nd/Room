@@ -46,27 +46,27 @@ Everything new lives in `web3d/`.
 - [x] **Visual polish**: tapered tentacles with suckers, rug and paintings (the witch's eyes follow you),
       rounded furniture, film grain
 
+### Round 3 (also built)
+- [x] TypeScript migration and module split; Vitest unit tests, visual regression and perf budgets in CI
+- [x] Five branching endings, Part 4 (three lessons), campaign map, cutscenes, dialogue trees, narration
+- [x] Endless roguelike mode, co-op (WebRTC, copy-paste codes), photo mode, accessibility pass
+- [x] Mana and spells (Levitate, Shrink, Blink), dynamic music, instancing, adaptive resolution
+
 ## Next ideas (not built yet)
 
 ### Quick wins
 - **GitHub Pages deploy**: a workflow that builds `web3d/` and publishes a playable link
-- **Photo mode** + "share your room" screenshot
-- Subtitles/captions for the witch's lines, colour-blind-friendly telegraph colours, a reduced-motion toggle
 
 ### Gameplay depth
 - **Free conjuring**: unlock off-grid placement and stacking (books on tables, lamps on desks) after the game
-- **Mana and spell upgrades**: bigger conjures cost more; levitate, shrink, swap
 
 ### Story — beyond Part 3
-- More rooms beyond hell: a library-world, a flooded room, a gravity-flipped room where things fall *up*
-- Branching endings: spare/stay/redecorate ending ("most people just stay in the room and redecorate")
 - Voice acting via TTS for the witch; a proper cutscene system
 
 ### Tech & platform
 - **VR mode** (WebXR): point your wand and drop furniture in room scale. A natural fit for this game
 - Ship as a desktop app (Tauri/Electron) or wrap for Android/iOS (Capacitor)
 - Port to Godot/Unity for a Steam release with real art, physics and voice
-- Multiplayer co-op: two wizards, one room, conjure each other's solutions
 - Replace procedural models with stylised low-poly GLTF art; baked lighting for mobile
 
 ### For the original Java version

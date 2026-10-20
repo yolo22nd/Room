@@ -16,7 +16,7 @@ npm run dev        # http://localhost:5173
 npm run build      # static site in dist/ (works from any sub-path, e.g. GitHub Pages)
 ```
 
-Built with [three.js](https://threejs.org) and Vite. There are no asset files: every texture, model and
+Built with [three.js](https://threejs.org), TypeScript and Vite. There are no asset files: every texture, model and
 sound is generated in code (canvas textures, primitive geometry, WebAudio synthesis).
 
 ## How it plays
@@ -54,6 +54,28 @@ alternate route to the H key.
 **Modes.** Normal, Hard (one heart, a five-pin Kraken), and a date-seeded Daily room (pre-built furniture,
 key hidden in a random cell). There's a speedrun timer with splits against your personal best.
 
+**Endings.** Five of them: decline the rematch, help the witch up, steal her broom, the true ending (every
+secret + every book), and a secret one for players who just... stay and redecorate. An endings gallery tracks them.
+
+**Part 4 — The Three Lessons** (after a witch ending): the Upside-Down Room (everything falls *up*; match the
+ceiling runes), the Flooded Library (rising water floats you; conjured furniture displaces water; save six books
+before they sink) and the Clockwork Tower (the room turns; jam the gear when the door faces the bridge).
+
+**Campaign.** A chapter map to replay any chapter you've reached, letterboxed cutscenes, a pre-fight
+conversation with the witch whose answers change the fight, crystal-ball hints in the lessons, and optional
+read-aloud narration.
+
+**Mana and spells.** Conjuring costs mana from a regenerating pool. Learn Levitate (move furniture), Shrink
+(tiny for 10 s — there's a secret under the bed) and Blink (teleport) through side content.
+
+**Endless rooms.** A roguelike mode: procedurally generated rooms (floor runes, upside-down runes, key hunts,
+pressure plates), upgrades between rooms, one life, a local leaderboard and a date-seeded daily run.
+
+**Co-op.** Two players, peer-to-peer over WebRTC with copy-paste invite codes — no server. Solve the Twin Room
+together: match the runes, then both stand on opposite pressure plates.
+
+**Photo mode** (V): freeze the game, fly the camera, apply film filters, save a PNG.
+
 **Room editor.** Build your own escape room, hide the key in a piece of furniture, pick an exit door, add a
 title and note, test it, and share it as a link. The whole room is encoded in the URL, so no server is needed.
 
@@ -73,7 +95,8 @@ title and note, test it, and share it as a link. The whole room is encoded in th
 | Space | move | stand up |
 | Esc | II | pause |
 | / or T | Pause → Command line | classic CLI: `create bed north east`, `go sw`, `locate`, `turn lamp`… |
-| 1 / 2 | Spells | in boss fights: switch spell (furniture / nail / lemon) |
+| 1 / 2 / 3 / 4 | Spells / Search | in boss fights: furniture, nail or lemon, Blink, Shrink |
+| V | Pause → Photo mode | photo mode |
 
 A gamepad works too: left stick move, right stick look, A use, RT cast, Y spells, X lamp, LB search, LT rotate,
 B stand/cancel, Start pause; the d-pad and A navigate menus.
@@ -87,27 +110,38 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 - Installable PWA with offline play (production build), gamepad support
 - Procedural music and sound: ambient drones, a heartbeat in the dark, a music box, Hell war drums,
   and synthesised sound effects
-- Settings: music/sfx volume, look sensitivity, invert Y, graphics quality (shadows + bloom)
+- Settings: music/sfx volume, look sensitivity, invert Y, graphics quality (shadows + bloom), auto resolution,
+  FPS counter, speedrun timer
+- Accessibility: remappable keys, sound captions, reduced motion, colour-blind safe telegraphs, text size,
+  optional narration
+- Dynamic music that reacts to danger; surface-aware footsteps
+- Adaptive resolution and instanced rendering for phones
 - Touch controls are switched on automatically on phones and tablets
 
 ## Code map
 
 | File | What |
 |---|---|
-| `src/main.js` | renderer, game loop, title/pause/settings/death/ending screens |
-| `src/game.js` | Act 1: conjuring and placement, collisions, every interaction and puzzle |
-| `src/hell.js` | Act 2: arena, Kraken 2.0, tentacle AI, pins, fireballs, nail, victory |
-| `src/witch.js` | Act 3: the witch's garden, witch AI, clones, reflection, lemon |
-| `src/physics.js` | lazy-loaded Rapier wrapper |
-| `src/share.js` | URL encoding of custom rooms |
-| `src/tube.js` | tapered tube geometry for tentacles |
-| `src/room.js` | room geometry, the 3×3 grid, walls with door gaps, annex rooms |
-| `src/models.js` | procedural furniture, keys, lantern, giant nail; the conjure catalog |
-| `src/story.js` | all narrative text |
-| `src/audio.js` | WebAudio synthesis |
-| `src/input.js`, `src/player.js` | keyboard/mouse/touch input, first-person controller |
-| `src/ui.js`, `src/style.css` | HUD, dialogs, toasts, screens |
-| `src/save.js` | save game, settings, achievements |
+| `src/main.ts` | renderer, game loop, every screen and mode (campaign, endless, co-op, editor, photo, cutscenes) |
+| `src/game.ts` + `src/roomlevel/*.ts` | Act 1: state and frame update; placement, interactions, physics, console, search |
+| `src/hell.ts` | Act 2: arena, Kraken 2.0, tentacle AI, pins, fireballs, nail, victory |
+| `src/witch.ts` | Act 3: the witch's garden, witch AI, clones, reflection, lemon |
+| `src/physics.ts` | lazy-loaded Rapier wrapper |
+| `src/share.ts` | URL encoding of custom rooms |
+| `src/tube.ts` | tapered tube geometry for tentacles |
+| `src/bosslevel.ts` | shared boss-fight pieces (markers, ammo, cloak) |
+| `src/chamber.ts`, `src/lessons.ts` | Part 4 base level and the three lessons |
+| `src/roguelike.ts` | endless mode rooms and upgrades |
+| `src/coop.ts`, `src/net.ts` | co-op level and WebRTC peer |
+| `src/endings.ts`, `src/state.ts` | endings registry; fresh state and the daily seed |
+| `src/spells.ts`, `src/dialogue.ts`, `src/cutscene.ts`, `src/voice.ts`, `src/photo.ts`, `src/a11y.ts` | spells and mana; dialogue trees; cutscenes; narration; photo mode; accessibility |
+| `src/room.ts` | room geometry, the 3×3 grid, walls with door gaps, annex rooms |
+| `src/models.ts` | procedural furniture, keys, lantern, giant nail; the conjure catalog |
+| `src/story.ts` | all narrative text |
+| `src/audio.ts` | WebAudio synthesis |
+| `src/input.ts`, `src/player.ts` | keyboard/mouse/touch input, first-person controller |
+| `src/ui.ts`, `src/style.css` | HUD, dialogs, toasts, screens |
+| `src/save.ts` | save game, settings, achievements |
 
 `window.__room` exposes the engine for automated playtests.
 
