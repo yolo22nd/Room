@@ -39,13 +39,22 @@ export class RogueRoom extends ChamberLevel {
     const rnd = seededRandom(run.seed + ':' + run.depth);
     const kind = run.depth === 0 ? 'runes' : KINDS[Math.floor(rnd() * KINDS.length)];
     const big = run.depth >= 4 && rnd() < 0.5;
+    // from room 4 on, rooms may roll a modifier
+    const mod = run.depth >= 3 ? ['none', 'none', 'dark', 'cramped', 'stormy'][Math.floor(rnd() * 5)] : 'none';
+    const size = mod === 'cramped' ? 6 : big ? 12 : 9, grid = mod === 'cramped' ? 2 : big ? 4 : 3;
     super(engine, state, {
       gravity: kind === 'upside' ? 1 : -1,
-      w: big ? 12 : 9, d: big ? 12 : 9, cols: big ? 4 : 3, rows: big ? 4 : 3,
+      w: size, d: size, cols: grid, rows: grid,
       fog: 0x06050a,
       wallMat: new THREE.MeshStandardMaterial({ color: PALETTES[Math.floor(rnd() * PALETTES.length)], roughness: 0.9 }),
     });
-    this.rnd = rnd; this.run = run; this.kind = kind;
+    this.rnd = rnd; this.run = run; this.kind = kind; this.mod = mod;
+    if (mod === 'dark') {
+      this.light.intensity = 2.5; this.light.distance = 7;
+      this.scene.fog.near = 2; this.scene.fog.far = 11;
+      this.scene.traverse((o: any) => { if (o.isHemisphereLight) o.intensity = 0.08; });
+    }
+    if (mod === 'cramped') this.start = [this.cellCenter([1, 1]).x, size / 2 - 1.2, 0];
     this.chapterId = 'rogue';
     this.addExit('n', 'Exit door');
     this.hazardT = 6;
@@ -58,7 +67,8 @@ export class RogueRoom extends ChamberLevel {
     if (kind === 'runes' || kind === 'upside') this.setupRunes(n);
     if (kind === 'hunt') this.setupHunt(Math.min(3 + run.depth, this.freeCells.length - 1, FLOOR().length));
     if (kind === 'plates') this.setupPlates(n);
-    this.intro = { runes: 'Floor runes: conjure what each rune shows, onto it.', upside: 'Upside runes: gravity is reversed. Match the ceiling.', hunt: 'Key hunt: the key hides in one piece of furniture. Search next to them (G). Wrong guesses anger the ceiling.', plates: 'Pressure plates: drop something heavy enough onto every plate.' }[kind];
+    const modText = { dark: ' It is very dark in here.', cramped: ' It is very cramped.', stormy: ' The ceiling is in a terrible mood.' }[mod] || '';
+    this.intro = { runes: 'Floor runes: conjure what each rune shows, onto it.', upside: 'Upside runes: gravity is reversed. Match the ceiling.', hunt: 'Key hunt: the key hides in one piece of furniture. Search next to them (G). Wrong guesses anger the ceiling.', plates: 'Pressure plates: drop something heavy enough onto every plate.' }[kind] + modText;
   }
 
   // ---------------------------------------------------------- puzzles
@@ -175,7 +185,7 @@ export class RogueRoom extends ChamberLevel {
     // more pumpkins the deeper you go
     if (this.run.depth >= 2 && this.exit.locked) {
       this.hazardT -= dt;
-      if (this.hazardT <= 0) { this.dropHazard(this.rnd() < 0.6 ? new THREE.Vector3(this.player.pos.x, 0, this.player.pos.z) : null); this.hazardT = Math.max(2.5, 8 - this.run.depth * 0.5); }
+      if (this.hazardT <= 0) { this.dropHazard(this.rnd() < 0.6 ? new THREE.Vector3(this.player.pos.x, 0, this.player.pos.z) : null); this.hazardT = Math.max(2.5, 8 - this.run.depth * 0.5) * (this.mod === 'stormy' ? 0.5 : 1); }
     }
     for (let i = (this.hazards || []).length - 1; i >= 0; i--) {
       const h = this.hazards[i];
@@ -209,7 +219,8 @@ export class RogueRoom extends ChamberLevel {
   }
   inventory() {
     const r = this.run;
-    return [`🏚️ Room <b>${r.depth + 1}</b>`, ...r.upgrades.map(id => UPGRADES.find(u => u.id === id).icon)];
+    const modIcon = { dark: '🌑 <b>Dark</b>', cramped: '📦 <b>Cramped</b>', stormy: '⛈️ <b>Stormy</b>' }[this.mod];
+    return [`🏚️ Room <b>${r.depth + 1}</b>`, ...(modIcon ? [modIcon] : []), ...r.upgrades.map(id => UPGRADES.find(u => u.id === id).icon)];
   }
 }
 
