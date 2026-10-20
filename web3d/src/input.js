@@ -5,6 +5,7 @@ export const input = {
   keys: new Set(),
   lookDX: 0, lookDY: 0,
   stick: { x: 0, y: 0 },
+  pad: { x: 0, y: 0, run: false, connected: false },
   actions: [],
   touch: false,
   locked: false,
@@ -75,10 +76,62 @@ export function moveVector() {
   if (k.has('KeyS') || k.has('ArrowDown')) y -= 1;
   if (k.has('KeyD') || k.has('ArrowRight')) x += 1;
   if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
-  x += input.stick.x; y += input.stick.y;
+  x += input.stick.x + input.pad.x; y += input.stick.y + input.pad.y;
   const len = Math.hypot(x, y);
   if (len > 1) { x /= len; y /= len; }
-  return { x, y, run: k.has('ShiftLeft') || k.has('ShiftRight') };
+  return { x, y, run: k.has('ShiftLeft') || k.has('ShiftRight') || input.pad.run };
+}
+
+// ---------------------------------------------------------------- gamepad
+// Standard mapping: A use, B stand/cancel, X lamp, Y spellbook, RT/RB cast,
+// LB search, LT rotate, Start pause, Back command line. In menus the d-pad
+// moves focus, A clicks, B backs out.
+const PAD_ACTIONS = { 0: 'use', 1: 'cancel', 2: 'lamp', 3: 'book', 4: 'search', 5: 'cast', 6: 'rotate', 7: 'cast', 8: 'console', 9: 'pause' };
+let prevButtons = [];
+let onPadConnect = () => {};
+export function setPadListener(fn) { onPadConnect = fn; }
+addEventListener('gamepadconnected', (e) => { input.pad.connected = true; onPadConnect(e.gamepad.id); });
+addEventListener('gamepaddisconnected', () => { input.pad.connected = false; input.pad.x = input.pad.y = 0; });
+
+const dead = (v) => (Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82);
+
+function menuNav(dir) {
+  const root = !document.getElementById('dialog').classList.contains('hidden') ? document.getElementById('dialog') : document.getElementById('screen');
+  const items = [...root.querySelectorAll('button:not([disabled]), input, select')];
+  if (!items.length) return;
+  const i = items.indexOf(document.activeElement);
+  const next = items[(i + dir + items.length) % items.length] || items[0];
+  next.focus();
+}
+
+export function pollGamepad(dt) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = [...pads].find(p => p && p.connected);
+  if (!gp) { input.pad.x = input.pad.y = 0; return; }
+  const ax = gp.axes;
+  input.pad.x = dead(ax[0] || 0); input.pad.y = -dead(ax[1] || 0);
+  input.pad.run = !!(gp.buttons[10] && gp.buttons[10].pressed);
+  if (input.enabled) {
+    const lx = dead(ax[2] || 0), ly = dead(ax[3] || 0);
+    input.lookDX += lx * Math.abs(lx) * 900 * dt;
+    input.lookDY += ly * Math.abs(ly) * 650 * dt;
+  }
+  const pressed = gp.buttons.map(b => b.pressed || b.value > 0.5);
+  const edge = (i) => pressed[i] && !prevButtons[i];
+  if (overlayOpen()) {
+    if (edge(12) || edge(14)) menuNav(-1);
+    if (edge(13) || edge(15)) menuNav(1);
+    if (edge(0)) {
+      const a = document.activeElement;
+      if (a && a.tagName === 'BUTTON' && a.closest('#dialog,#screen')) a.click();
+      else dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter' }));
+    }
+    if (edge(1)) dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
+  } else {
+    for (const [i, a] of Object.entries(PAD_ACTIONS)) if (edge(+i)) input.actions.push(a);
+    if (edge(1)) input.actions.push('stand');
+  }
+  prevButtons = pressed;
 }
 
 function initTouch(canvas) {

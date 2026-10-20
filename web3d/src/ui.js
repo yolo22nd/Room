@@ -103,6 +103,8 @@ export function dialog({ title = '', html = '', buttons = [], onClose = null, di
   });
   if (buttons.length) box.appendChild(acts);
   wrap.appendChild(box); wrap.classList.remove('hidden');
+  const padOn = navigator.getGamepads && [...navigator.getGamepads()].some(p => p && p.connected);
+  if (padOn) setTimeout(() => { const f = box.querySelector('button:not([disabled])'); if (f) f.focus(); }, 0);
   dialogKeyHandler = (e) => {
     if (e.code === 'Escape' && dismissable) { e.preventDefault(); closeDialog(); return; }
     const m = /^Digit([1-9])$/.exec(e.code);

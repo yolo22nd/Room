@@ -4,7 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
-import { initInput, input, consumeActions, requestLock, releaseLock } from './input.js';
+import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener } from './input.js';
 import * as ui from './ui.js';
 import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } from './audio.js';
 import { Player } from './player.js';
@@ -126,6 +126,13 @@ const engine = {
     showEnding();
   },
 };
+
+setPadListener((id) => ui.toast('🎮 Controller connected', id.slice(0, 40)));
+
+// offline / installable (production builds only)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
 
 // re-capture the mouse after a dialog closes (the click is a user gesture)
 ui.setAfterClose(() => setTimeout(() => {
@@ -252,6 +259,7 @@ function showHelp() {
     html: `<p>You are a newbie wizard banished to a dark, empty room. Your one power: <b>anything you conjure falls from the sky</b>. Build the room, solve its secrets, and find your way to Hell — then out the other side.</p>
     ${touch ? `<p><b>Left stick</b> move · <b>drag</b> anywhere to look<br><b>Use</b> interact / confirm · <b>Cast</b> conjure / attack<br><b>Spells</b> open the spellbook (in Hell: switch spell)<br><b>Lamp</b> toggle the lamp · <b>Search</b> search the floor</p>`
       : `<p><kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Mouse</kbd> look<br><kbd>E</kbd> interact · <kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast<br><kbd>R</kbd> rotate before casting · <kbd>Right-click</kbd> cancel<br><kbd>F</kbd> lamp · <kbd>G</kbd> search the floor · <kbd>X</kbd> put the lamp down<br><kbd>Space</kbd> stand up · <kbd>Esc</kbd> pause<br><kbd>/</kbd> classic command line (<i>create bed north</i>, <i>go sw</i>…)<br>In Hell: <kbd>1</kbd>/<kbd>2</kbd> or <kbd>Q</kbd> switch spell</p>`}
+    <p class="muted">Controller: left stick move · right stick look · <b>A</b> use · <b>RT</b> cast · <b>Y</b> spells · <b>X</b> lamp · <b>LB</b> search · <b>LT</b> rotate · <b>B</b> stand/cancel · <b>Start</b> pause. D-pad + A in menus.</p>
     <p class="muted">Tip: things land on whatever cell you're looking at. Don't look at your own feet.</p>`,
     buttons: [{ label: 'Got it' }],
   });
@@ -314,15 +322,15 @@ function frame() {
   input.enabled = playing && !busy;
   if (busy && input.locked) releaseLock();
 
+  pollGamepad(dt);
   const actions = consumeActions();
   if (engine.mode === 'play' && engine.level) {
     for (const a of actions) {
       if (a === 'pause' || a === 'unlocked') { if (!busy) pauseMenu(); continue; }
       if (!input.enabled) continue;
-      if (a === 'cast' && !input.touch && !input.locked) continue;
       engine.level.handleAction(a);
     }
-    if (input.enabled && !input.touch && !input.locked && !(engine.level.placing)) {
+    if (input.enabled && !input.touch && !input.locked && !input.pad.connected && !(engine.level.placing)) {
       ui.setPrompt('<kbd>Click</kbd>to look around');
     }
   }

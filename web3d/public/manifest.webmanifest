@@ -1,0 +1,16 @@
+{
+  "name": "ROOM: Go To Hell",
+  "short_name": "ROOM",
+  "description": "A newbie wizard, a dark room, and a way through hell. Everything you conjure falls from the sky.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07060a",
+  "theme_color": "#07060a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
