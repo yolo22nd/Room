@@ -37,6 +37,8 @@ import { ChamberLevel } from './chamber';
 import { Cutscene } from './cutscene';
 import { RogueRoom, UPGRADES, newRun } from './roguelike';
 import { seededRandom } from './state';
+import { Peer } from './net';
+import { CoopLevel } from './coop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 
@@ -186,6 +188,33 @@ const engine: any = {
     return true;
   },
 
+  // ------------------------------------------------------------ co-op
+  startCoop(peer) {
+    ui.closeDialog(true); ui.hideScreen();
+    this.peer = peer;
+    this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+    const st: any = freshRoomState('coop');
+    Object.assign(st, { lamp: 'hand', lampOn: true, mana: 100, maxMana: 100 });
+    this.roomState = st;
+    this.mode = 'play';
+    ui.showHUD(true);
+    this.setLevel(new CoopLevel(this, st, peer));
+    sfx.win();
+  },
+  coopDone() {
+    unlock('coop');
+    this.mode = 'title';
+    releaseLock(); ui.showHUD(false); ui.setTimer(null);
+    ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Escaped together!</h1>
+      <div class="sub">the twin room</div><div class="stats">Time ........ ${ui.fmtTime(this.stats.time)}</div>
+      <div class="actions" style="margin-top:18px"><button class="btn primary" id="c-title">Back to title</button></div></div>`);
+    document.getElementById('c-title').onclick = () => { sfx.click(); showTitle(); };
+  },
+  coopLost() {
+    this.mode = 'title';
+    ui.dialog({ title: 'Disconnected', html: '<p>Your partner left (or the connection dropped).</p>', buttons: [{ label: 'Back to title', onClick: () => showTitle() }], dismissable: false });
+  },
+
   // ------------------------------------------------------------ endless mode
   startRun(daily = false) {
     initAudio();
@@ -285,6 +314,12 @@ const engine: any = {
 
   die(why) {
     if (this.run) { this.runOver(why); return; }
+    if (this.level instanceof CoopLevel) {
+      this.roomState.hearts = this.roomState.maxHearts;
+      ui.log('Your partner drags you back to your feet. (Co-op: no game over.)', 'good');
+      ui.setHearts(this.roomState.hearts, this.roomState.maxHearts);
+      return;
+    }
     this.mode = 'dead';
     this.stats.deaths++;
     setHeartbeat(0);
@@ -511,6 +546,7 @@ function buildDemo() {
 
 function showTitle() {
   engine.run = null;
+  if (engine.peer) { engine.peer.send({ t: 'bye' }); engine.peer.close(); engine.peer = null; }
   engine.mode = 'title'; engine.paused = false;
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
   setHeartbeat(0);
@@ -529,6 +565,7 @@ function showTitle() {
         ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
         <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
         <button class="btn" id="t-endless">♾️ Endless rooms</button>
+        <button class="btn" id="t-coop">👥 Co-op</button>
         <button class="btn" id="t-campaign">📖 Campaign (${chaptersDone().length + lessonsDone().length}/6 chapters)</button>
         ${lessonsUnlocked() ? `<button class="btn" id="t-lessons">📜 Part 4: The Three Lessons (${lessonsDone().length}/3)</button>` : ''}
         <button class="btn" id="t-editor">🛠️ Room editor</button>
@@ -546,6 +583,7 @@ function showTitle() {
   on('t-editor', () => openEditor());
   on('t-campaign', () => showCampaign());
   on('t-endless', () => showEndless());
+  on('t-coop', () => showCoop());
   on('t-lessons', () => ui.dialog({
     title: 'Part 4: The Three Lessons',
     buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
@@ -754,6 +792,60 @@ function leaderboardHtml() {
   if (!b.length) return '';
   return `<table class="splits">${b.map((e, i) => `<tr><td>#${i + 1} ${e.daily ? '📅 ' + e.daily : '♾️'}</td><td>${e.depth} rooms</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
 }
+function codeBox(id, value = '', readonly = false) {
+  return `<textarea id="${id}" rows="4" ${readonly ? 'readonly' : ''} spellcheck="false" style="width:100%;font:11px var(--mono);padding:8px;border-radius:8px;border:1px solid #45355e;background:#0d0a12;color:var(--good);resize:vertical">${value}</textarea>`;
+}
+function copyText(text) {
+  const done = () => ui.toast('Copied!');
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done); else done();
+}
+function showCoop() {
+  ui.dialog({
+    title: '👥 Co-op (two players)',
+    html: `<p>Two wizards, one room. One of you hosts, the other joins. You swap two codes (by chat, email, anything) — there's no server.</p>
+      <p class="muted">Peer-to-peer WebRTC. Works best on the same network; across the internet it uses a public STUN server to find each other, and some strict networks block it.</p>`,
+    buttons: [{ label: '👑 Host a room', cls: 'primary', onClick: hostCoop }, { label: '🤝 Join a room', onClick: joinCoop }, { label: 'Back' }],
+  });
+}
+async function hostCoop() {
+  const peer = new Peer();
+  peer.onOpen = () => engine.startCoop(peer);
+  const box = ui.dialog({ title: '👑 Host', html: '<p>Creating your invite code…</p>', buttons: [{ label: 'Cancel', onClick: () => peer.close() }] });
+  const code = await peer.createOffer();
+  const b = ui.dialog({
+    title: '👑 Host',
+    html: `<p><b>1.</b> Send this invite code to your partner:</p>${codeBox('co-offer', code, true)}
+      <p><b>2.</b> Paste the reply code they send back:</p>${codeBox('co-answer')}`,
+    buttons: [
+      { label: '📋 Copy invite', keep: true, onClick: () => copyText(code) },
+      { label: '🔗 Connect', cls: 'primary', keep: true, onClick: async () => {
+        try { await peer.acceptAnswer(b.querySelector<any>('#co-answer').value); ui.toast('Connecting…'); } catch (e) { ui.toast('That reply code didn\'t work.'); }
+      } },
+      { label: 'Cancel', onClick: () => peer.close() },
+    ],
+  });
+  b.querySelectorAll('textarea').forEach((t: any) => t.addEventListener('keydown', (e) => e.stopPropagation()));
+}
+function joinCoop() {
+  const peer = new Peer();
+  peer.onOpen = () => engine.startCoop(peer);
+  const b = ui.dialog({
+    title: '🤝 Join',
+    html: `<p><b>1.</b> Paste the host's invite code:</p>${codeBox('co-offer')}<div id="co-reply"></div>`,
+    buttons: [
+      { label: 'Create my reply code', cls: 'primary', keep: true, onClick: async () => {
+        try {
+          const reply = await peer.acceptOffer(b.querySelector<any>('#co-offer').value);
+          b.querySelector<any>('#co-reply').innerHTML = `<p><b>2.</b> Send this reply code back to the host, then wait:</p>${codeBox('co-answer', reply, true)}`;
+          copyText(reply);
+        } catch (e) { ui.toast('That invite code didn\'t work.'); }
+      } },
+      { label: 'Cancel', onClick: () => peer.close() },
+    ],
+  });
+  b.querySelectorAll('textarea').forEach((t: any) => t.addEventListener('keydown', (e) => e.stopPropagation()));
+}
+
 function showEndless() {
   const today = loadRuns().filter(e => e.daily === todaySeed()).sort((a, b) => b.depth - a.depth)[0];
   ui.dialog({
@@ -1015,7 +1107,7 @@ function frame() {
 // key X drops the lamp
 
 // debug / test hook (used by automated playtests)
-(window as any).__room = { enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
+(window as any).__room = { Peer, enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
 
 initPhoto();
 showTitle();

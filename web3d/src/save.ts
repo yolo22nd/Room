@@ -71,6 +71,7 @@ export const ACHIEVEMENTS = [
   { id: 'lessons', icon: '📜', name: 'Top of the Class', desc: 'Pass all three of the witch\'s lessons.' },
   { id: 'rogue5', icon: '♾️', name: 'Room Service', desc: 'Clear 5 rooms in one endless run.' },
   { id: 'rogue10', icon: '🏚️', name: 'Interior Decorator of the Abyss', desc: 'Clear 10 rooms in one endless run.' },
+  { id: 'coop', icon: '👥', name: 'Better Together', desc: 'Escape the twin room in co-op.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
   { id: 'smash', icon: '🔨', name: 'Who Needs Keys', desc: 'Smash the showcase with a falling anvil.' },
   { id: 'vault', icon: '🔓', name: 'Safecracker', desc: 'Open the witch\'s vault on the PC.' },
