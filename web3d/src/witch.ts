@@ -3,6 +3,7 @@ import { COL } from './a11y';
 import { ring, glowSprite } from './textures';
 import { CATALOG, buildObject, box, cyl } from './models';
 import { FX } from './fx';
+import { BossLevel } from './bosslevel';
 import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
 import { RADIUS } from './player';
 import * as ui from './ui';
@@ -46,9 +47,9 @@ function makeWitchModel() {
   return g;
 }
 
-export class WitchLevel {
-  [key: string]: any;
+export class WitchLevel extends BossLevel {
   constructor(engine, state) {
+    super();
     this.engine = engine;
     this.player = engine.player;
     this.camera = engine.camera;
@@ -187,11 +188,6 @@ export class WitchLevel {
     return ray.origin.clone().addScaledVector(ray.direction, t);
   }
 
-  ammo() {
-    const t = Object.values<any>(this.state.placed).map(p => p.type).filter(x => CATALOG[x] && CATALOG[x].kind === 'floor');
-    return t.length ? [...new Set(t)] : ['cushion'];
-  }
-
   cast() {
     if (this.phase !== 'fight') return;
     if (this.spell === 'lemon') { this.throwLemon(); return; }
@@ -202,7 +198,7 @@ export class WitchLevel {
     if (!this.engine.spend(manaCost('furniture'))) return;
     this.cooldown = this.state.flags.wand ? 0.45 : 0.9;
     sfx.conjure();
-    const types = this.ammo();
+    const types = this.ammoTypes();
     const type = types[Math.floor(Math.random() * types.length)];
     const obj = buildObject(type); obj.scale.setScalar(1.2); obj.rotation.y = Math.random() * 6;
     obj.position.set(p.x, 16, p.z); this.scene.add(obj);
@@ -219,12 +215,6 @@ export class WitchLevel {
     this.scene.add(m);
     this.lemon = { obj: m, vel: dir.multiplyScalar(26), t: 0 };
     sfx.click();
-  }
-
-  marker(p, size, color) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(size * 2, size * 2), new THREE.MeshBasicMaterial({ map: ring(), color, transparent: true, depthWrite: false, opacity: 0.85 }));
-    m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.05, p.z); this.scene.add(m);
-    return m;
   }
 
   // --------------------------------------------------------------- witch AI
@@ -475,7 +465,7 @@ export class WitchLevel {
 
   hurt(n, why) {
     if (this.phase !== 'fight') return;
-    if (this.shield > 0) { this.shield--; sfx.close(); ui.flash('#b58cff', 0.4, 400); ui.log('Your cloak flares and absorbs the blow!', 'good'); this.refreshHUD(); return; }
+    if (this.absorbWithCloak()) return;
     this.hitsTaken++;
     this.engine.damage(n, why);
   }

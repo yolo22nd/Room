@@ -3,6 +3,7 @@ import { COL } from './a11y';
 import { basalt, lava, ring, glowSprite, portal } from './textures';
 import { CATALOG, buildObject, makeGiantNail } from './models';
 import { FX } from './fx';
+import { BossLevel } from './bosslevel';
 import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
 import { TaperTube } from './tube';
 import { loadPhysics, PhysicsWorld } from './physics';
@@ -44,9 +45,9 @@ function krakenSkin() {
   return t;
 }
 
-export class HellLevel {
-  [key: string]: any;
+export class HellLevel extends BossLevel {
   constructor(engine, state) {
+    super();
     this.engine = engine;
     this.player = engine.player;
     this.camera = engine.camera;
@@ -290,11 +291,6 @@ export class HellLevel {
     return p;
   }
 
-  ammoTypes() {
-    const types = Object.values<any>(this.state.placed).map(p => p.type).filter(t => CATALOG[t] && CATALOG[t].kind === 'floor');
-    return types.length ? [...new Set(types)] : ['cushion'];
-  }
-
   cast() {
     if (this.phase !== 'fight' && this.phase !== 'exposed') {
       if (this.phase === 'won') return;
@@ -329,12 +325,6 @@ export class HellLevel {
       this.engine.stats.conjured++;
     }
     this.refreshHUD();
-  }
-
-  marker(p, size, color) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(size * 2, size * 2), new THREE.MeshBasicMaterial({ map: ring(), color, transparent: true, depthWrite: false, opacity: 0.8 }));
-    m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.05, p.z); this.scene.add(m);
-    return m;
   }
 
   // ------------------------------------------------------------ tentacles
@@ -625,12 +615,7 @@ export class HellLevel {
 
   hurt(n, why) {
     if (this.phase === 'dying' || this.phase === 'won') return;
-    if (this.shield > 0) {
-      this.shield--; sfx.close(); ui.flash('#b58cff', 0.4, 400);
-      ui.log('Your cloak flares and absorbs the blow!', 'good');
-      this.refreshHUD();
-      return;
-    }
+    if (this.absorbWithCloak()) return;
     this.hitsTaken++;
     this.engine.damage(n, why);
   }
