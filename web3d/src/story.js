@@ -112,6 +112,30 @@ export const ENDING = [
   'She smiles. "Rematch?"\n\nTO BE CONTINUED...',
 ];
 
+export const WITCH_INTRO = [
+  'You step through the white door onto cool grass. Dusk. Fireflies. A ring of standing stones.',
+  'The witch drifts down on her broom and lands in front of you.\n"Rematch, then. I did ask."',
+  '"Same rules as always: whatever you conjure falls from the sky.\nSame rules for me, too."',
+  '<em>PART 3 — THE REMATCH</em>',
+];
+
+export const WITCH_TAUNTS = [
+  '"Is that a sofa? You brought a SOFA to a duel?"',
+  '"I taught half the wizards in this world. You\'re the worst one. I like that."',
+  '"Pumpkin season!"',
+  '"Look up, newbie!"',
+  '"Still fabulous, I see."',
+  '"My cauldron says hello."',
+];
+
+export const WITCH_ENDING = [
+  'The witch lies in the grass, hat crumpled, laughing so hard she can\'t get up.',
+  '"Fine! FINE! You win, newbie. Nobody has beaten me since the dragon."',
+  '"I suppose that makes you... my apprentice? Don\'t make that face. It comes with a room."',
+  '"A nicer one. With a window. And yes — a kitchen. With knives."',
+  '<em>THE END</em>\n\n(for real this time)',
+];
+
 export const PC_SURF = `WIZNET EXPLORER v0.9
 
 > Connecting to the world of the living...

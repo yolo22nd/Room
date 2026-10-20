@@ -65,6 +65,14 @@ export function setTimer(t, sub = '', cls = '') {
   timerEls.t.textContent = fmtTime(t);
   if (timerEls.s.textContent !== sub) { timerEls.s.textContent = sub; timerEls.s.className = cls; }
 }
+let bossEls = null;
+export function setBoss(b) {
+  if (!bossEls) bossEls = { box: document.getElementById('boss'), name: document.getElementById('boss-name'), fill: document.getElementById('boss-fill') };
+  if (!b) { bossEls.box.classList.add('hidden'); return; }
+  bossEls.box.classList.remove('hidden');
+  bossEls.name.textContent = b.name;
+  bossEls.fill.style.width = Math.max(0, b.frac * 100) + '%';
+}
 export function setObjective(html) { els.objective.innerHTML = html ? `Goal: <b>${html}</b>` : ''; }
 export function setVignette(mode) { els.vignette.className = mode || ''; }
 export function setCooldown(frac) {

@@ -26,7 +26,8 @@ import { initAudio, setVolumes, updateAudio, playAmbience, setHeartbeat, sfx } f
 import { Player } from './player.js';
 import { RoomLevel, freshRoomState, todaySeed } from './game.js';
 import { HellLevel } from './hell.js';
-import { INTRO, HELL_ENTRY, ENDING } from './story.js';
+import { WitchLevel } from './witch.js';
+import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story.js';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
   ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun,
@@ -115,7 +116,7 @@ const engine = {
     this.stats.deaths++;
     setHeartbeat(0);
     releaseLock();
-    const inHell = this.level instanceof HellLevel;
+    const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel;
     ui.closeDialog(true);
     ui.screen(`<div class="title-wrap"><h1 style="font-size:64px">You died</h1><p class="sub">${ui.escapeHtml(why || 'it happens')}</p>
       <div class="actions"><button class="btn primary" id="retry">${inHell ? 'Retry the fight' : 'Load last save'}</button><button class="btn" id="totitle">Back to title</button></div></div>`);
@@ -153,9 +154,37 @@ const engine = {
     if (this.stats.time < 15 * 60) unlock('speed');
     if (this.roomState && this.roomState.mode === 'hard') unlock('hardmode');
     if (this.roomState && this.roomState.mode === 'daily') unlock('daily');
-    clearSave();
     await ui.story(ENDING);
-    showEnding();
+    ui.dialog({
+      title: '"Rematch?"',
+      html: '<p>The witch is twirling her broom, waiting for an answer.</p>',
+      dismissable: false,
+      buttons: [
+        { label: '⚔️ Accept the rematch (Part 3)', cls: 'primary', onClick: () => this.startWitch() },
+        { label: 'Not today', onClick: () => { clearSave(); showEnding('escape'); } },
+      ],
+    });
+  },
+
+  async startWitch() {
+    this.mode = 'transition';
+    const s = this.roomState;
+    s.hearts = s.maxHearts;
+    saveGame({ version: 1, act: 'witch', room: s, stats: this.stats, savedAt: Date.now() });
+    await ui.story(WITCH_INTRO);
+    this.mode = 'play';
+    ui.showHUD(true);
+    this.setLevel(new WitchLevel(this, s));
+  },
+
+  async finale() {
+    this.mode = 'transition';
+    releaseLock();
+    ui.flash('#ffffff', 0.8, 1500);
+    this.split('Rematch');
+    clearSave();
+    await ui.story(WITCH_ENDING);
+    showEnding('witch');
   },
 };
 
@@ -265,11 +294,11 @@ function continueGame(fromDeath = false) {
   engine.stats = save.stats || { time: 0, deaths: 0, conjured: 0 };
   if (fromDeath) engine.stats.deaths = Math.max(engine.stats.deaths, 0);
   ui.hideScreen();
-  if (save.act === 'hell') {
+  if (save.act === 'hell' || save.act === 'witch') {
     const s = save.room; s.hearts = s.maxHearts;
     engine.roomState = s;
     engine.mode = 'play'; ui.showHUD(true);
-    engine.setLevel(new HellLevel(engine, s));
+    engine.setLevel(save.act === 'hell' ? new HellLevel(engine, s) : new WitchLevel(engine, s));
   } else {
     const s = save.room;
     if (s.hearts <= 0) s.hearts = s.maxHearts;
@@ -277,7 +306,7 @@ function continueGame(fromDeath = false) {
   }
 }
 
-function showEnding() {
+function showEnding(kind = 'escape') {
   engine.mode = 'title';
   ui.showHUD(false); ui.setTimer(null);
   const t = engine.stats.time;
@@ -292,12 +321,12 @@ function showEnding() {
   }).join('');
   const modeName = mode === 'daily' ? `daily ${st.seed}` : mode;
   ui.screen(`<div class="title-wrap">
-    <h1 style="font-size:clamp(36px,7vw,64px)">You escaped</h1>
-    <div class="sub">kraken 2.0 · nailed <span class="mode-badge">${modeName}</span></div>
+    <h1 style="font-size:clamp(36px,7vw,64px)">${kind === 'witch' ? 'The Apprentice' : 'You escaped'}</h1>
+    <div class="sub">${kind === 'witch' ? 'kraken nailed · witch defeated' : 'kraken 2.0 · nailed'} <span class="mode-badge">${modeName}</span></div>
     <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
     ${rows ? `<table class="splits">${rows}</table>` : ''}
     <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-title">Back to title</button></div>
-    <div class="foot">Thanks for playing. Part 3: the rematch — someday.</div></div>`);
+    <div class="foot">${kind === 'witch' ? 'Thanks for playing ROOM — all three parts.' : 'The rematch is waiting whenever you are: escape again and say yes.'}</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
   document.getElementById('e-title').onclick = () => showTitle();
 }
@@ -361,7 +390,7 @@ function pauseMenu() {
     onClose: () => { engine.paused = false; },
     buttons: [
       { label: 'Resume', cls: 'primary', onClick: () => { engine.paused = false; requestLock(); } },
-      inRoom ? { label: 'Save game', onClick: () => { engine.mode = 'play'; engine.autosave(true); ui.log('Game saved.', 'good'); engine.paused = false; requestLock(); } } : { label: 'Save (auto-saved at the gate of Hell)', disabled: true },
+      inRoom ? { label: 'Save game', onClick: () => { engine.mode = 'play'; engine.autosave(true); ui.log('Game saved.', 'good'); engine.paused = false; requestLock(); } } : { label: 'Checkpoint saved at the start of this fight', disabled: true },
       inRoom ? { label: 'Command line (classic mode)', onClick: () => { engine.paused = false; engine.level.openConsole(); } } : null,
       { label: 'How to play', onClick: () => { showHelp(); } },
       { label: 'Settings', onClick: () => showSettings() },

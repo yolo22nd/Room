@@ -165,6 +165,17 @@ export function playAmbience(kind) {
       if (beat % 8 === 6) noise(0.15, { vol: 0.06, freq: 2000, type: 'highpass' });
       beat++;
     }, 300);
+  } else if (kind === 'witch') {
+    filt.frequency.value = 1400;
+    nodes.push(...pad(out, [73.4, 110, 146.8], 'triangle', 6, 0.03));
+    const notes = [293.7, 349.2, 440, 523.3, 440, 392, 349.2, 329.6];
+    let i = 0;
+    timer = setInterval(() => {
+      tone(notes[i % notes.length], 0.28, { type: 'square', vol: 0.025, bus: musicBus });
+      if (i % 2 === 0) tone(73.4, 0.2, { type: 'sine', vol: 0.15, slide: 0.6, bus: musicBus });
+      if (i % 4 === 2) noise(0.06, { vol: 0.05, freq: 3000, type: 'highpass' });
+      i++;
+    }, 220);
   } else if (kind === 'ending') {
     nodes.push(...pad(out, [130.8, 164.8, 196, 246.9], 'triangle', 5, 0.03));
     const notes = [523.3, 659.3, 784, 987.8, 784, 659.3];
