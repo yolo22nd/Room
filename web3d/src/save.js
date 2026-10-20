@@ -56,6 +56,7 @@ export const ACHIEVEMENTS = [
   { id: 'kraken', icon: '🦑', name: 'Kraken Nailed', desc: 'Defeat Kraken 2.0.' },
   { id: 'flawless', icon: '💎', name: 'Untouchable', desc: 'Defeat Kraken 2.0 without losing a heart in Hell.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
+  { id: 'smash', icon: '🔨', name: 'Who Needs Keys', desc: 'Smash the showcase with a falling anvil.' },
   { id: 'vault', icon: '🔓', name: 'Safecracker', desc: 'Open the witch\'s vault on the PC.' },
   { id: 'secrets', icon: '🗝️', name: 'Secret Keeper', desc: 'Find the Ember Wand, the Witch\'s Cloak and the diary.' },
   { id: 'designer', icon: '🏠', name: 'Interior Designer', desc: 'Have all 12 kinds of furniture in the room at once.' },

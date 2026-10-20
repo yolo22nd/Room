@@ -22,6 +22,9 @@ export const CATALOG = {
   bathroom: { name: 'Bathroom',     icon: '🚽', kind: 'beyond' },
   kitchen:  { name: 'Kitchen',      icon: '🍳', kind: 'beyond' },
   hell:     { name: 'Hell',         icon: '🔥', kind: 'beyond' },
+  crate:    { name: 'Crate',        icon: '📦', kind: 'junk', shape: { box: [0.35, 0.35, 0.35] }, mass: 2 },
+  ball:     { name: 'Beach Ball',   icon: '⚽', kind: 'junk', shape: { ball: 0.32 }, mass: 0.3, bounce: 0.8 },
+  anvil:    { name: 'Anvil',        icon: '🔨', kind: 'junk', shape: { box: [0.36, 0.2, 0.18] }, mass: 40 },
 };
 
 const M = {
@@ -252,6 +255,45 @@ const builders = {
     return g;
   },
 };
+
+// junk: physics toys, built around their centre of mass
+const junkBuilders = {
+  crate() {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x9a6a3e, roughness: 0.8 });
+    box(0.66, 0.66, 0.66, wood, 0, 0, 0, g);
+    // twelve edge beams
+    const e = 0.33, t = 0.07, L = 0.72;
+    for (const a of [-e, e]) for (const b of [-e, e]) {
+      box(L, t, t, M.darkWood, 0, a, b, g);
+      box(t, L, t, M.darkWood, a, 0, b, g);
+      box(t, t, L, M.darkWood, a, b, 0, g);
+    }
+    return g;
+  },
+  ball() {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+    const x = c.getContext('2d');
+    ['#ff4d5e', '#ffffff', '#4d9dff', '#ffffff', '#ffd84d', '#ffffff'].forEach((col, i) => { x.fillStyle = col; x.fillRect(i * 128 / 6, 0, 128 / 6 + 1, 64); });
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 16), new THREE.MeshStandardMaterial({ map: t, roughness: 0.35 }));
+    m.castShadow = true; const g = new THREE.Group(); g.add(m); return g;
+  },
+  anvil() {
+    const g = new THREE.Group();
+    const iron = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.4, metalness: 0.9 });
+    box(0.72, 0.12, 0.36, iron, 0, 0.14, 0, g);
+    box(0.3, 0.16, 0.22, iron, 0, 0.0, 0, g);
+    box(0.5, 0.08, 0.34, iron, 0, -0.14, 0, g);
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 10), iron); horn.rotation.z = Math.PI / 2; horn.position.set(0.5, 0.14, 0); horn.castShadow = true; g.add(horn);
+    return g;
+  },
+};
+export function buildJunk(type) {
+  const g = junkBuilders[type]();
+  g.userData.type = type;
+  return g;
+}
 
 export function buildObject(type) {
   const g = builders[type]();

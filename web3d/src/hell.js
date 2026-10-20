@@ -3,6 +3,7 @@ import { basalt, lava, ring, glowSprite, portal } from './textures.js';
 import { CATALOG, buildObject, makeGiantNail } from './models.js';
 import { FX } from './fx.js';
 import { TaperTube } from './tube.js';
+import { loadPhysics, PhysicsWorld } from './physics.js';
 import { RADIUS } from './player.js';
 import * as ui from './ui.js';
 import { sfx, playAmbience } from './audio.js';
@@ -191,6 +192,7 @@ export class HellLevel {
   }
 
   activate() {
+    this.initPhysics();
     this.scene.add(this.camera);
     this.player.place(0, 13, 0);
     this.player.speed = 4.2;
@@ -206,7 +208,51 @@ export class HellLevel {
     ui.log('Aim at the ground and cast to drop furniture from the sky. Pin its arms while they rest on the stone!', 'lore');
   }
 
-  deactivate() { this.scene.remove(this.camera); }
+  deactivate() { this.scene.remove(this.camera); if (this.phys) { this.phys.dispose(); this.phys = null; } }
+
+  initPhysics() {
+    loadPhysics().then(() => {
+      if (this.phys || !this.scene) return;
+      const ph = new PhysicsWorld(-22);
+      ph.addStaticCylinder(ARENA_C.x, -1.5, ARENA_C.z, 1.5, ARENA_R);
+      ph.addStaticBox(KRAKEN_POS.x, 3, KRAKEN_POS.z, 5, 6, 4); // the kraken's bulk
+      this.playerBody = ph.addKinematicBall(0.45);
+      this.debris = [];
+      this.phys = ph;
+    }).catch(() => {});
+  }
+
+  // furniture that missed becomes a tumbling rigid body
+  makeDebris(d) {
+    const obj = d.obj;
+    const [hx, hy, hz] = obj.userData.half || [0.5, 0.5, 0.5];
+    obj.position.y = 0.02;
+    const it = this.phys.addDynamic(obj, { box: [hx, hy, hz], offset: [0, hy, 0] }, { mass: 3, restitution: 0.3, velocity: { x: (Math.random() - 0.5) * 2, y: 2.5, z: (Math.random() - 0.5) * 2 }, spin: { x: Math.random() * 3, y: Math.random() * 3, z: Math.random() * 3 } });
+    it.life = 9;
+    this.debris.push(it);
+    if (this.debris.length > 14) this.removeDebris(this.debris[0], true);
+  }
+  removeDebris(it, poof) {
+    this.phys.remove(it);
+    this.scene.remove(it.mesh);
+    this.debris.splice(this.debris.indexOf(it), 1);
+    if (poof) this.fx.burst(it.mesh.position.clone().setY(Math.max(0.5, it.mesh.position.y)), { count: 10, color: '#b58cff', size: 0.4 });
+  }
+  updatePhysics(dt) {
+    if (!this.phys) return;
+    this.playerBody.setNextKinematicTranslation({ x: this.player.pos.x, y: 0.5, z: this.player.pos.z });
+    this.phys.step(dt);
+    for (const it of [...this.debris]) {
+      it.life -= dt;
+      const y = it.mesh.position.y;
+      if (y < -1.4) {
+        // into the lava
+        this.fx.burst(new THREE.Vector3(it.mesh.position.x, -1.4, it.mesh.position.z), { count: 18, color: '#ff8030', speed: 3, size: 0.5 });
+        sfx.sizzle();
+        this.removeDebris(it, false);
+      } else if (it.life <= 0) this.removeDebris(it, true);
+    }
+  }
 
   // ------------------------------------------------------------ actions
   handleAction(a) {
@@ -265,6 +311,7 @@ export class HellLevel {
       const type = types[Math.floor(Math.random() * types.length)];
       const obj = buildObject(type);
       obj.scale.setScalar(1.3);
+      { const sz = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()); obj.userData.half = [sz.x / 2, sz.y / 2, sz.z / 2]; }
       obj.rotation.y = Math.random() * Math.PI * 2;
       obj.position.set(p.x, 16, p.z);
       this.scene.add(obj);
@@ -387,6 +434,7 @@ export class HellLevel {
           T.state = 'down'; T.timer = 0;
           if (T.warn) { this.scene.remove(T.warn); T.warn = null; }
           sfx.slam();
+          if (this.phys) this.phys.impulseAt(T.target, 5, 7);
           this.fx.dust(T.target, 1.6);
           this.fx.burst(T.target.clone().setY(0.3), { count: 14, color: '#ff7a30', speed: 4, life: 0.6, size: 0.4 });
           const d = Math.hypot(this.player.pos.x - T.target.x, this.player.pos.z - T.target.z);
@@ -462,12 +510,13 @@ export class HellLevel {
         return;
       }
     }
-    d.landedT = 0;
+    if (this.phys) { this.drops.splice(i, 1); this.makeDebris(d); } else d.landedT = 0;
   }
 
   nailLanded(d, i) {
     sfx.nail();
     this.player.addShake(1.2);
+    if (this.phys) this.phys.impulseAt(d.target, 9, 12);
     this.fx.dust(d.target, 3);
     const headGround = this.headGroundPoint();
     const hit = this.phase === 'exposed' && Math.hypot(d.target.x - headGround.x, d.target.z - headGround.z) < 4.2;
@@ -640,6 +689,7 @@ export class HellLevel {
     this.tentacles.forEach(T => this.updateTentacle(T, dt));
     this.updateDrops(dt);
     this.updateProjectiles(dt);
+    this.updatePhysics(dt);
 
     // aim ring
     const p = (this.phase === 'fight' || exposed) ? this.aimPoint() : null;

@@ -3,7 +3,9 @@ import {
   Room, CELLS, SIDES, SIDE_NAMES, CELL_NAMES, cellCenter, cellAt, sideMatrix, sideRot,
   HALF, WALL_H, GAP_W, ANNEX_W, ANNEX_D, WALL_T,
 } from './room.js';
-import { CATALOG, buildObject, buildDoor, buildTV, makeLantern, makeGhostKey } from './models.js';
+import { CATALOG, buildObject, buildDoor, buildTV, makeLantern, makeGhostKey, buildJunk } from './models.js';
+import { loadPhysics, PhysicsWorld } from './physics.js';
+import { ring } from './textures.js';
 import { RADIUS } from './player.js';
 import { FX } from './fx.js';
 import { glowSprite } from './textures.js';
@@ -115,6 +117,7 @@ export class RoomLevel {
   }
 
   deactivate() {
+    if (this.phys) { this.junk.forEach(j => this.scene.remove(j.mesh)); this.phys.dispose(); this.phys = null; this.physLoading = null; }
     this.camera.remove(this.wand);
     this.lantern.removeFromParent();
     this.scene.remove(this.camera);
@@ -129,6 +132,7 @@ export class RoomLevel {
     this.placeLantern();
     const s = this.state.flags;
     if (s.showcaseOpen) this.openShowcaseVisual(true);
+    if (s.showcaseSmashed && this.entities.get('showcase')) this.hideShowcaseGlass(this.entities.get('showcase'));
     if (s.hellKeyTaken) { const sc = this.entities.get('showcase'); if (sc) sc.group.userData.hkey.visible = false; }
     for (const side of SIDES) {
       const e = this.entities.get('door_' + side);
@@ -231,6 +235,7 @@ export class RoomLevel {
     if (e.type === 'door') { this.room.setPlug(e.slot, true); delete this.state.flags[key]; }
     this.entities.delete(key);
     delete this.state.placed[key];
+    this.syncStatics();
     const pos = e.annex ? e.annex.portalWorld || new THREE.Vector3().setFromMatrixPosition(sideMatrix(e.slot)) : e.group.position;
     this.fx.burst(pos.clone().setY(1), { count: 18, color: '#b58cff', speed: 2, life: 0.8, size: 0.4 });
   }
@@ -243,7 +248,7 @@ export class RoomLevel {
   // ------------------------------------------------------------- conjuring
   openSpellbook() {
     if (this.placing) { this.cancelPlacing(); return; }
-    const groups = { hand: 'In your hand', floor: 'Floor — lands on the cell you aim at', wall: 'Wall — the wall you face', beyond: 'Beyond — outside the wall you face' };
+    const groups = { hand: 'In your hand', floor: 'Floor — lands on the cell you aim at', wall: 'Wall — the wall you face', beyond: 'Beyond — outside the wall you face', junk: 'Junk — physics toys, land exactly where you aim (as many as you like)' };
     let html = this.engine.touch
       ? '<p class="muted">Pick something to conjure. It will fall from the sky. Aim, then tap <b>Cast</b>. <b>Use</b> rotates, <b>Spells</b> cancels.</p>'
       : '<p class="muted">Pick something to conjure. It will fall from the sky. <kbd>R</kbd> rotates, click or <kbd>E</kbd> casts, <kbd>Q</kbd> / right-click cancels.</p>';
@@ -251,7 +256,7 @@ export class RoomLevel {
       html += `<div class="section-label">${groups[k]}</div><div class="spell-grid">`;
       for (const [type, c] of Object.entries(CATALOG)) {
         if (c.kind !== k) continue;
-        const placed = type === 'door' ? SIDES.some(s => this.entities.has('door_' + s)) : (type === 'lamp' ? !!this.state.lamp : this.entities.has(type));
+        const placed = c.kind === 'junk' ? false : type === 'door' ? SIDES.some(s => this.entities.has('door_' + s)) : (type === 'lamp' ? !!this.state.lamp : this.entities.has(type));
         html += `<button class="spell${placed ? ' placed' : ''}" data-type="${type}"><span class="ico">${c.icon}</span><span class="nm">${c.name}</span>${placed ? '<span class="ty">placed</span>' : ''}</button>`;
       }
       html += '</div>';
@@ -272,6 +277,14 @@ export class RoomLevel {
     if (type === 'lamp') { this.conjureLamp(); return; }
     const kind = CATALOG[type].kind;
     let ghost;
+    if (kind === 'junk') {
+      ghost = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: ring(), color: 0xc9a8ff, transparent: true, depthWrite: false }));
+      ghost.rotation.x = -Math.PI / 2;
+      this.scene.add(ghost);
+      this.placing = { type, kind, ghost, rot: 0, target: null };
+      ui.log(`Aim and cast to drop a ${CATALOG[type].name.toLowerCase()}. Keep casting for more; ${this.engine.touch ? 'Spells' : 'Q'} to stop.`);
+      return;
+    }
     if (kind === 'floor') {
       ghost = buildObject(type);
     } else if (kind === 'wall') {
@@ -298,7 +311,7 @@ export class RoomLevel {
   aimTarget() {
     const kind = this.placing.kind;
     const cam = this.camera;
-    if (kind === 'floor') {
+    if (kind === 'floor' || kind === 'junk') {
       const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
       let p;
       if (dir.y < -0.05) {
@@ -309,6 +322,7 @@ export class RoomLevel {
       }
       p.x = Math.max(-HALF + 0.01, Math.min(HALF - 0.01, p.x));
       p.z = Math.max(-HALF + 0.01, Math.min(HALF - 0.01, p.z));
+      if (kind === 'junk') { p.x = Math.max(-HALF + 0.4, Math.min(HALF - 0.4, p.x)); p.z = Math.max(-HALF + 0.4, Math.min(HALF - 0.4, p.z)); p.y = 0; return p; }
       return cellAt(p.x, p.z);
     }
     // walls / beyond: the side we face most
@@ -319,6 +333,13 @@ export class RoomLevel {
 
   updatePlacing() {
     const pl = this.placing;
+    if (pl.kind === 'junk') {
+      pl.target = this.aimTarget();
+      pl.ghost.position.set(pl.target.x, 0.02, pl.target.z);
+      const inAnnex = this.room.annexAt(this.player.pos.x, this.player.pos.z);
+      ui.setPrompt(inAnnex ? '<span style="color:var(--danger)">Step back into the main room first.</span>' : `<kbd>${this.engine.touch ? 'Cast' : 'Click'}</kbd>Drop a ${CATALOG[pl.type].name.toLowerCase()}`);
+      return;
+    }
     const slot = this.aimTarget();
     if (slot !== pl.target) { pl.target = slot; pl.rot = this.defaultRot(pl.type, slot); }
     const g = pl.ghost;
@@ -375,6 +396,13 @@ export class RoomLevel {
   castPlacing() {
     const pl = this.placing;
     if (!pl || !pl.target) return;
+    if (pl.kind === 'junk') {
+      if (this.room.annexAt(this.player.pos.x, this.player.pos.z)) { sfx.locked(); return; }
+      if (this.time - (this.junkT || -9) < 0.25) return;
+      this.junkT = this.time;
+      this.dropJunk(pl.type, pl.target.clone());
+      return;
+    }
     if (this.conjureAt(pl.type, pl.target, pl.rot)) this.cancelPlacing();
   }
 
@@ -384,7 +412,7 @@ export class RoomLevel {
     const key = this.keyFor(type, slot);
     if (this.entities.has(key)) {
       ui.log(`Your old ${CATALOG[type].name.toLowerCase()} vanishes in a puff of smoke.`);
-      if (type === 'showcase') { this.state.flags.showcaseOpen = false; }
+      if (type === 'showcase') { this.state.flags.showcaseOpen = false; this.state.flags.showcaseSmashed = false; }
       this.despawn(key);
       if (type === 'cushion') { const pc = this.entities.get('pc'); if (pc) { ui.log('With the cushion gone, the PC crashes to the floor and shatters!', 'warn'); this.shatterPC(pc); } }
     }
@@ -392,6 +420,96 @@ export class RoomLevel {
     this.spawn(type, slot, rot);
     this.engine.stats.conjured++;
     return true;
+  }
+
+  // ---------------------------------------------------------------- physics
+  async ensurePhysics() {
+    if (this.phys) return this.phys;
+    if (!this.physLoading) {
+      ui.log('Warming up the laws of physics...');
+      this.physLoading = loadPhysics().then(() => {
+        const ph = new PhysicsWorld(-20);
+        ph.addStaticBox(0, -0.5, 0, HALF + 6, 0.5, HALF + 6);                // floor (incl. annexes)
+        ph.addStaticBox(0, WALL_H + 0.5, 0, HALF + 6, 0.5, HALF + 6);        // ceiling
+        for (const s of SIDES) {
+          const p = new THREE.Vector3(0, WALL_H / 2, -0.35).applyMatrix4(sideMatrix(s));
+          const alongX = s === 'n' || s === 's';
+          ph.addStaticBox(p.x, p.y, p.z, alongX ? HALF + 1 : 0.35, WALL_H / 2, alongX ? 0.35 : HALF + 1);
+        }
+        this.playerBody = ph.addKinematicBall(0.38);
+        this.headBody = ph.addKinematicBall(0.3);
+        this.furnitureBodies = new Map();
+        this.junk = [];
+        this.phys = ph;
+        this.syncStatics();
+        return ph;
+      });
+    }
+    return this.physLoading;
+  }
+
+  syncStatics() {
+    const ph = this.phys;
+    if (!ph) return;
+    for (const b of this.furnitureBodies.values()) ph.removeBody(b);
+    this.furnitureBodies.clear();
+    for (const e of this.entities.values()) {
+      if (!e.rect || CATALOG[e.type].kind !== 'floor') continue;
+      const h = new THREE.Box3().setFromObject(e.group).max.y;
+      const r = e.rect;
+      this.furnitureBodies.set(e.key, ph.addStaticBox((r.minX + r.maxX) / 2, h / 2, (r.minZ + r.maxZ) / 2, (r.maxX - r.minX) / 2, h / 2, (r.maxZ - r.minZ) / 2));
+    }
+  }
+
+  async dropJunk(type, p) {
+    sfx.conjure();
+    const ph = await this.ensurePhysics();
+    const c = CATALOG[type];
+    const mesh = buildJunk(type);
+    mesh.position.set(p.x, WALL_H - 0.45, p.z);
+    mesh.rotation.set(Math.random(), Math.random() * 6, Math.random());
+    this.scene.add(mesh);
+    this.riftAt(new THREE.Vector3(p.x, WALL_H - 0.05, p.z));
+    const it = ph.addDynamic(mesh, c.shape, { mass: c.mass, restitution: c.bounce || 0.2, velocity: { x: 0, y: -2, z: 0 }, spin: { x: Math.random() * 4 - 2, y: 0, z: Math.random() * 4 - 2 }, ccd: type === 'anvil' });
+    it.type = type;
+    this.junk.push(it);
+    this.engine.stats.conjured++;
+    if (this.junk.length > 24) { const old = this.junk.shift(); ph.remove(old); this.scene.remove(old.mesh); }
+  }
+
+  junkImpact(it, speed) {
+    const p = it.mesh.position;
+    if (speed > 5) sfx.thud(it.type === 'anvil' ? 1.6 : it.type === 'ball' ? 0.3 : 0.8);
+    if (it.type !== 'anvil' || speed < 3) return;
+    this.player.addShake(Math.max(0, 0.6 - this.player.pos.distanceTo(new THREE.Vector3(p.x, 0, p.z)) / 8));
+    const inRect = (r, m = 0) => r && p.x > r.minX - m && p.x < r.maxX + m && p.z > r.minZ - m && p.z < r.maxZ + m;
+    const sc = this.entities.get('showcase');
+    if (sc && !this.state.flags.showcaseSmashed && inRect(sc.rect, 0.1) && p.y > 1.4) { this.smashShowcase(); return; }
+    const pc = this.entities.get('pc');
+    const cu = this.entities.get('cushion');
+    if (pc && cu && inRect(cu.rect) && p.y > 0.4) { ui.log('The anvil lands on the PC. It does not survive.', 'warn'); this.shatterPC(pc); return; }
+    const d = Math.hypot(p.x - this.player.pos.x, p.z - this.player.pos.z);
+    if (d < 0.7 && p.y > 0.8) {
+      ui.log('An anvil. On your head. Classic.', 'warn');
+      unlock('crushed');
+      this.engine.damage(1, 'flattened by an anvil, cartoon-style');
+    }
+  }
+
+  smashShowcase() {
+    const fl = this.state.flags;
+    const sc = this.entities.get('showcase');
+    fl.showcaseSmashed = true; fl.showcaseOpen = true;
+    sfx.shatter(); sfx.thud(1.5);
+    this.fx.debris(sc.group.position.clone().setY(1.6), { count: 30, color: 0xbfe6ff, size: 0.07, speed: 5 });
+    this.hideShowcaseGlass(sc);
+    ui.log('The anvil smashes straight through the showcase\'s glass! Who needs keys anyway?', 'good');
+    unlock('smash');
+    this.engine.autosave();
+  }
+  hideShowcaseGlass(sc) {
+    sc.group.userData.door.visible = false;
+    sc.group.traverse(o => { if (o.isMesh && o.material && o.material.opacity < 0.5 && o.material.transparent) o.visible = false; });
   }
 
   // ------------------------------------------------- the classic CLI console
@@ -558,6 +676,7 @@ export class RoomLevel {
       }
     }
     if (ent.type === 'showcase' && this.state.flags.hellKeyTaken) ent.group.userData.hkey.visible = false;
+    this.syncStatics();
     const floorCount = [...this.entities.values()].filter(e => CATALOG[e.type].kind === 'floor').length;
     if (floorCount >= 12) unlock('designer');
     this.refreshHUD();
@@ -1127,6 +1246,12 @@ export class RoomLevel {
     this.time += dt;
     this.updateDrops(dt);
     this.room.update(dt, this.time, this.camera.position);
+    if (this.phys) {
+      const pp = this.player.pos;
+      this.playerBody.setNextKinematicTranslation({ x: pp.x, y: 0.4, z: pp.z });
+      this.headBody.setNextKinematicTranslation({ x: pp.x, y: this.player.height - 0.1, z: pp.z });
+      for (const hit of this.phys.step(dt)) this.junkImpact(hit.item, hit.speed);
+    }
     this.fx.update(dt);
 
     if (this.anim) {
@@ -1222,8 +1347,8 @@ export class RoomLevel {
     if (!s.lamp) o = 'It\'s pitch dark. Open your spellbook (Q) and conjure a lamp.';
     else if (s.lamp !== 'hand') o = 'Pick your lamp back up.';
     else if (!s.lampOn) o = 'Turn on the lamp (F).';
-    else if (!fl.showKey && !fl.pcWon) o = 'Find a way out. Conjure things — the books, or a PC, might know something.';
-    else if (!fl.showKey) o = fl.keyCell ? `Search the floor in the ${CELL_NAMES[fl.keyCell]} part of the room (G).` : 'Search the floor where the PC stands (G).';
+    else if (!fl.hellKeyTaken && !fl.showKey && !fl.pcWon) o = 'Find a way out. Conjure things — the books, or a PC, might know something.';
+    else if (!fl.hellKeyTaken && !fl.showKey) o = fl.keyCell ? `Search the floor in the ${CELL_NAMES[fl.keyCell]} part of the room (G).` : 'Search the floor where the PC stands (G).';
     else if (!fl.hellKeyTaken) o = 'The invisible key opens something made of glass.';
     else if (!fl.nailKnown) o = 'Study the nail fossil in the showcase.';
     else {
