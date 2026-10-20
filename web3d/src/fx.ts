@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { glowSprite } from './textures';
 
+/** Frees geometry, materials and textures under an object (called when a level ends). */
+export function disposeTree(root) {
+  root.traverse((o: any) => {
+    if (o.geometry) o.geometry.dispose();
+    const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const mt of mats) { for (const k of ['map', 'emissiveMap', 'bumpMap']) if (mt[k] && mt[k].isCanvasTexture && !mt[k].userData.shared) mt[k].dispose(); mt.dispose(); }
+  });
+}
+
 // Tiny particle/debris manager shared by the levels.
 export class FX {
   [key: string]: any;

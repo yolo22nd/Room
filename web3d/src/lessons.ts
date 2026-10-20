@@ -185,7 +185,7 @@ export class LibraryLevel extends ChamberLevel {
     if (done && this.player.pos.y + this.player.height > this.cfg.h - 0.7 && Math.hypot(this.player.pos.x, this.player.pos.z) < 1.8) {
       this.phase = 'done';
       sfx.win();
-      setTimeout(() => this.engine.chapterDone(this.chapterId), 400);
+      setTimeout(() => { if (this.engine.level === this) this.engine.chapterDone(this.chapterId); }, 400);
     } else if (!done && this.water > this.cfg.h - 0.6) {
       ui.log('The water reaches the ceiling...', 'warn');
       this.fail();
@@ -195,7 +195,7 @@ export class LibraryLevel extends ChamberLevel {
   fail() {
     if (this.phase !== 'play') return;
     this.phase = 'failed';
-    setTimeout(() => this.engine.retryChapter(this.chapterId), 1500);
+    setTimeout(() => { if (this.engine.level === this) this.engine.retryChapter(this.chapterId); }, 1500);
   }
 
   objective() { return `Save the six glowing books before they sink. The water floats you up. (${this.books.filter(b => b.got).length}/6)`; }
@@ -344,7 +344,7 @@ export class ClockworkLevel extends ChamberLevel {
     this.goal.rotation.y += dt;
     if (this.phase === 'play' && this.player.pos.z < -16.4 && Math.abs(this.player.pos.x) < 2) {
       this.phase = 'done'; sfx.win();
-      setTimeout(() => this.engine.chapterDone(this.chapterId), 400);
+      setTimeout(() => { if (this.engine.level === this) this.engine.chapterDone(this.chapterId); }, 400);
     }
     // falling off the bridge isn't possible (walkable), but the door can open onto air
   }

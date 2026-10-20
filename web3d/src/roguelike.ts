@@ -56,7 +56,7 @@ export class RogueRoom extends ChamberLevel {
     this.freeCells = cells.filter(c => this.cellKey(c) !== startKey).sort(() => rnd() - 0.5);
     const n = Math.min(2 + Math.floor(run.depth / 2), kind === 'plates' ? 3 : 4);
     if (kind === 'runes' || kind === 'upside') this.setupRunes(n);
-    if (kind === 'hunt') this.setupHunt(Math.min(3 + run.depth, this.freeCells.length - 1));
+    if (kind === 'hunt') this.setupHunt(Math.min(3 + run.depth, this.freeCells.length - 1, FLOOR().length));
     if (kind === 'plates') this.setupPlates(n);
     this.intro = { runes: 'Floor runes: conjure what each rune shows, onto it.', upside: 'Upside runes: gravity is reversed. Match the ceiling.', hunt: 'Key hunt: the key hides in one piece of furniture. Search next to them (G). Wrong guesses anger the ceiling.', plates: 'Pressure plates: drop something heavy enough onto every plate.' }[kind];
   }
@@ -86,9 +86,12 @@ export class RogueRoom extends ChamberLevel {
     this.searched = new Set();
   }
   setupPlates(n) {
-    this.plates = this.freeCells.slice(0, n).map(cell => {
-      // never more than the heaviest furniture (a bed weighs 5)
-      const need = Math.min(5, 2 + Math.floor(this.rnd() * (2 + Math.min(3, this.run.depth))));
+    // each plate needs its own piece of furniture: the k-th heaviest plate can ask
+    // at most the k-th heaviest weight among distinct furniture types (5, 4, 4, ...)
+    const caps = Object.keys(WEIGHT).filter(t => t !== 'pc').map(t => WEIGHT[t]).sort((a, b) => b - a);
+    const needs = Array.from({ length: n }, () => 2 + Math.floor(this.rnd() * (2 + Math.min(3, this.run.depth)))).sort((a, b) => b - a).map((v, i) => Math.min(v, caps[i]));
+    this.plates = this.freeCells.slice(0, n).map((cell, i) => {
+      const need = needs[i];
       const p = this.cellCenter(cell);
       const plate = cyl(0.9, 0.95, 0.06, new THREE.MeshStandardMaterial({ color: 0x777788, metalness: 0.7, roughness: 0.4 }), p.x, 0.03, p.z, this.root, 24);
       const label = runePanel(null, 1.1, `≥ ${need}`); label.rotation.x = -Math.PI / 2; label.position.set(p.x, 0.07, p.z); this.root.add(label);
@@ -143,8 +146,8 @@ export class RogueRoom extends ChamberLevel {
       if (d < bd) { bd = d; best = o; }
     }
     if (!best || bd > 1.3) { ui.log('Search next to a piece of furniture.'); return; }
-    if (this.searched.has(best.type)) { ui.log('You already searched that one.'); return; }
-    this.searched.add(best.type);
+    if (this.searched.has(best)) { ui.log('You already searched that one.'); return; }
+    this.searched.add(best);
     if (best === this.keyIn) { ui.log(`The key was in the ${CATALOG[best.type].name.toLowerCase()}!`, 'good'); this.unlockExit(); return; }
     ui.log(`Nothing in the ${CATALOG[best.type].name.toLowerCase()}. The ceiling rumbles...`, 'warn');
     this.dropHazard(new THREE.Vector3(p.x, 0, p.z));
@@ -194,7 +197,7 @@ export class RogueRoom extends ChamberLevel {
     this.exit.opened = true; sfx.open();
     this.exit.door.userData.pivot.rotation.y = -1.5;
     this.phase = 'done';
-    setTimeout(() => this.engine.runRoomCleared(), 600);
+    setTimeout(() => { if (this.engine.level === this) this.engine.runRoomCleared(); }, 600);
   }
 
   objective() {

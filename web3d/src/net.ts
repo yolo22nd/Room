@@ -73,5 +73,5 @@ export class Peer {
   get open() { return !!this.channel && this.channel.readyState === 'open'; }
   send(msg) { if (this.open) this.channel.send(JSON.stringify(msg)); }
   on(fn) { this.handlers.add(fn); return () => this.handlers.delete(fn); }
-  close() { try { this.channel && this.channel.close(); this.pc.close(); } catch (e) { /* ignore */ } }
+  close() { this.closed = true; try { this.channel && this.channel.close(); this.pc.close(); } catch (e) { /* ignore */ } }
 }

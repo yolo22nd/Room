@@ -25,6 +25,7 @@ export const physicsMethods = {
     if (!this.physLoading) {
       ui.log('Warming up the laws of physics...');
       this.physLoading = loadPhysics().then(() => {
+        if (this.gone) return null;
         const ph = new PhysicsWorld(-20);
         ph.addStaticBox(0, -0.5, 0, HALF + 6, 0.5, HALF + 6);                // floor (incl. annexes)
         ph.addStaticBox(0, WALL_H + 0.5, 0, HALF + 6, 0.5, HALF + 6);        // ceiling
@@ -62,6 +63,7 @@ export const physicsMethods = {
     if (!this.engine.spend(manaCost(type))) return;
     sfx.conjure();
     const ph = await this.ensurePhysics();
+    if (!ph || this.gone) return;
     const c = CATALOG[type];
     const mesh = buildJunk(type);
     mesh.position.set(p.x, WALL_H - 0.45, p.z);
@@ -87,7 +89,7 @@ export const physicsMethods = {
     const cu = this.entities.get('cushion');
     if (pc && cu && inRect(cu.rect) && p.y > 0.4) { ui.log('The anvil lands on the PC. It does not survive.', 'warn'); this.shatterPC(pc); return; }
     const d = Math.hypot(p.x - this.player.pos.x, p.z - this.player.pos.z);
-    if (d < 0.7 && p.y > 0.8) {
+    if (d < 0.7 && p.y > 0.8 && this.state.mode !== 'editor') {
       ui.log('An anvil. On your head. Classic.', 'warn');
       unlock('crushed');
       this.engine.damage(1, 'flattened by an anvil, cartoon-style');

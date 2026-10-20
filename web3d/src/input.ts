@@ -45,7 +45,8 @@ const overlayOpen = () => !document.getElementById('dialog').classList.contains(
 
 export function initInput(canvas) {
   canvasEl = canvas;
-  input.touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  // a coarse primary pointer means a phone/tablet; touch-capable laptops keep mouse controls
+  input.touch = matchMedia('(pointer: coarse)').matches;
   if (input.touch) document.body.classList.add('touch');
 
   addEventListener('keydown', (e) => {

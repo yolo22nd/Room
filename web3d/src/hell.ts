@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { COL } from './a11y';
 import { basalt, lava, ring, glowSprite, portal } from './textures';
 import { CATALOG, buildObject, makeGiantNail } from './models';
-import { FX } from './fx';
+import { FX, disposeTree } from './fx';
 import { BossLevel } from './bosslevel';
 import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
 import { TaperTube } from './tube';
@@ -78,6 +78,7 @@ export class HellLevel extends BossLevel {
     this.player.walkable = (x, z) => Math.hypot(x - ARENA_C.x, z - ARENA_C.z) < ARENA_R - 0.8 - RADIUS && !(Math.hypot(x - KRAKEN_POS.x, z - KRAKEN_POS.z) < 6.5);
     this.player.canMove = () => true;
     this.player.onBlocked = null;
+    this.player.onGrow = null;
   }
 
   build() {
@@ -218,11 +219,11 @@ export class HellLevel extends BossLevel {
     ui.log('Aim at the ground and cast to drop furniture from the sky. Pin its arms while they rest on the stone!', 'lore');
   }
 
-  deactivate() { this.scene.remove(this.camera); if (this.phys) { this.phys.dispose(); this.phys = null; } }
+  deactivate() { this.gone = true; this.scene.remove(this.camera); if (this.phys) { this.phys.dispose(); this.phys = null; } disposeTree(this.scene); }
 
   initPhysics() {
     loadPhysics().then(() => {
-      if (this.phys || !this.scene) return;
+      if (this.phys || !this.scene || this.gone) return;
       const ph = new PhysicsWorld(-22);
       ph.addStaticCylinder(ARENA_C.x, -1.5, ARENA_C.z, 1.5, ARENA_R);
       ph.addStaticBox(KRAKEN_POS.x, 3, KRAKEN_POS.z, 5, 6, 4); // the kraken's bulk

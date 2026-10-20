@@ -32,6 +32,7 @@ export const searchMethods = {
       const r = bed.rect, p = this.player.pos;
       if (p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ) {
         setTimeout(() => {
+      if (this.engine.level !== this) return;
           fl.crystal = true; sfx.key();
           const s = this.state; s.maxMana = (s.maxMana || 100) + 25; s.mana = s.maxMana;
           ui.log('Under the bed, at mouse height, a glowing blue crystal is wedged between the floorboards. (+25 max mana)', 'good');
@@ -41,6 +42,7 @@ export const searchMethods = {
       }
     }
     setTimeout(() => {
+      if (this.engine.level !== this) return;
       const keyHere = fl.keyCell ? (fl.pcWon && fl.keyCell === here) : (pc && pc.slot === here);
       if (keyHere && !fl.showKey) {
         fl.showKey = true;
@@ -76,6 +78,7 @@ export const searchMethods = {
     sfx.click();
     ui.log(`You search around the ${CATALOG[e.type].name.toLowerCase()}...`);
     setTimeout(() => {
+      if (this.engine.level !== this) return;
       if (this.state.mode === 'editor') { ui.log(c.keyIn === e.key ? 'This is where your key is hidden.' : 'Nothing here. (Editor: pick the key spot from the Esc menu.)'); return; }
       if (fl.customKey) { ui.log('You already found the key.'); return; }
       if (c.keyIn === e.key) {

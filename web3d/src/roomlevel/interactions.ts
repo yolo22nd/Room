@@ -343,7 +343,7 @@ export const interactionsMethods = {
       if (!this.state.flags.customKey) { sfx.locked(); ui.log('The exit door is locked. The key is hidden somewhere in this room — search near the furniture (G).', 'warn'); return; }
       sfx.key(); this.setDoor(side, true);
       ui.log('The key turns. Daylight pours in!', 'good');
-      setTimeout(() => this.engine.customWin(), 900);
+      setTimeout(() => { if (this.engine.level === this) this.engine.customWin(); }, 900);
       return;
     }
     if (open) { this.setDoor(side, false); ui.log('You closed the door.'); return; }

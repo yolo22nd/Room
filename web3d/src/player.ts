@@ -25,7 +25,7 @@ export class Player {
     this.shrunk = 0;
   }
 
-  place(x, z, yaw = this.yaw) { this.pos.set(x, 0, z); this.yaw = yaw; this.pitch = 0; this.stand(true); }
+  place(x, z, yaw = this.yaw) { this.speed = 3; this.shrunk = 0; this.pos.set(x, 0, z); this.yaw = yaw; this.pitch = 0; this.stand(true); }
 
   eye() { return this.shrunk > 0 ? 0.45 : EYE; }
 

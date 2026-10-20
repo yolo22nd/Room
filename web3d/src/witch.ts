@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { COL } from './a11y';
 import { ring, glowSprite } from './textures';
 import { CATALOG, buildObject, box, cyl } from './models';
-import { FX } from './fx';
+import { FX, disposeTree } from './fx';
 import { BossLevel } from './bosslevel';
 import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
 import { RADIUS } from './player';
@@ -74,6 +74,7 @@ export class WitchLevel extends BossLevel {
     this.player.walkable = (x, z) => Math.hypot(x, z) < ARENA_R - RADIUS;
     this.player.canMove = () => true;
     this.player.onBlocked = null;
+    this.player.onGrow = null;
   }
 
   build() {
@@ -153,11 +154,12 @@ export class WitchLevel extends BossLevel {
     playAmbience('witch');
     ui.setVignette('');
     this.phase = 'fight';
+    if (this.state.talk && !this.talkApplied) this.applyTalk(this.state.talk);
     this.refreshHUD();
     ui.log('She only drops her shield when she lands to cast. Drop furniture on her then!', 'lore');
     if (this.state.flags.lemon) ui.log('Your lemon twitches in your pocket. (2 / Q to ready it, cast to throw.)', 'lore');
   }
-  deactivate() { this.scene.remove(this.camera); ui.setBoss(null); }
+  deactivate() { this.scene.remove(this.camera); ui.setBoss(null); disposeTree(this.scene); }
 
   // --------------------------------------------------------------- input
   handleAction(a) {
@@ -319,6 +321,7 @@ export class WitchLevel extends BossLevel {
   }
 
   applyTalk(effects) {
+    this.talkApplied = true;
     if (effects.includes('easy')) this.slow = 1.25;
     if (effects.includes('rattled')) { this.hp = Math.max(1, this.hp - 1); ui.log('She\'s rattled: one hit already counts against her.', 'good'); }
   }
@@ -445,7 +448,7 @@ export class WitchLevel extends BossLevel {
     ui.setBoss(null);
     ui.log('The witch tumbles off her broom and lands in a heap, laughing.', 'good');
     playAmbience('ending');
-    setTimeout(() => this.engine.finale(), 3500);
+    setTimeout(() => { if (this.engine.level === this) this.engine.finale(); }, 3500);
   }
 
   updateLemon(dt) {

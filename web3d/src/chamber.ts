@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CATALOG, buildObject, buildDoor } from './models';
-import { FX } from './fx';
+import { FX, disposeTree } from './fx';
 import { RADIUS } from './player';
 import { ring, woodFloor, plaster } from './textures';
 import * as ui from './ui';
@@ -126,7 +126,7 @@ export class ChamberLevel {
     sfx.open();
     this.exit.door.userData.pivot.rotation.y = -1.5;
     this.phase = 'done';
-    setTimeout(() => this.engine.chapterDone(this.chapterId), 700);
+    setTimeout(() => { if (this.engine.level === this) this.engine.chapterDone(this.chapterId); }, 700);
   }
 
   // ---------------------------------------------------------------- grid
@@ -315,7 +315,7 @@ export class ChamberLevel {
     this.refreshHUD();
     if (this.intro) ui.log(this.intro, 'lore');
   }
-  deactivate() { this.scene.remove(this.camera); }
+  deactivate() { this.scene.remove(this.camera); disposeTree(this.scene); }
 
   update(dt) {
     this.time += dt;

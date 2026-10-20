@@ -1,4 +1,6 @@
 import { CATALOG } from './models';
+const CELLS = ['nw', 'n', 'ne', 'w', 'm', 'e', 'sw', 's', 'se'];
+const SIDES = ['n', 'e', 's', 'w'];
 
 // Compact, URL-safe encoding of a custom room:
 // { v, t: title, n: note, p: [[typeIndex, slot, rot], ...], k: key-hiding entity, x: exit side }
@@ -28,6 +30,8 @@ export function decodeRoom(code) {
     for (const [ti, slot, rot] of d.p) {
       const type = TYPES[ti];
       if (!type || typeof slot !== 'string') continue;
+      const kind = CATALOG[type].kind;
+      if (kind === 'floor' ? !CELLS.includes(slot) : !SIDES.includes(slot)) continue;
       const key = type === 'door' ? 'door_' + slot : type;
       placed[key] = { type, slot, rot: (rot | 0) % 4 };
     }

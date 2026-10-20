@@ -19,7 +19,13 @@ test('endless: every generated room is solvable for many seeds and depths', asyn
         const types = room.runes.map(r => r.type);
         if (new Set(types).size !== types.length) out.push(`dup rune types ${s}/${d}`);
       }
-      if (room.plates && room.plates.some(p => p.need > 5)) out.push(`impossible plate ${s}/${d}`);
+      if (room.plates) {
+        // plates must be satisfiable with distinct furniture types
+        const caps = Object.values(WEIGHT).sort((a, b) => b - a);
+        const needs = room.plates.map(p => p.need).sort((a, b) => b - a);
+        if (needs.some((n, i) => n > caps[i])) out.push(`impossible plates ${s}/${d}: ${needs}`);
+      }
+      if (room.kind === 'hunt' && new Set(room.hidden.map(o => o.type)).size !== room.hidden.length) out.push(`duplicate hunt types ${s}/${d}`);
       if (room.kind === 'hunt' && (!room.keyIn || room.hidden.length < 2)) out.push(`bad hunt ${s}/${d}`);
       room.deactivate && room.scene.clear();
     }

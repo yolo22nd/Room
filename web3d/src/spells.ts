@@ -44,7 +44,8 @@ export function castBlink(engine, fx, point) {
   if (!point) { ui.log('Aim at the floor to blink.', 'warn'); return false; }
   const d = Math.hypot(point.x - p.pos.x, point.z - p.pos.z);
   if (d > 8) { ui.log('Too far to blink (8 m max).', 'warn'); return false; }
-  if (!p.walkable(point.x, point.z, point.x, point.z)) { sfx.locked(); ui.log('You can\'t blink into that.', 'warn'); return false; }
+  const lv = engine.level;
+  if (!p.walkable(point.x, point.z, p.pos.x, p.pos.z) || (lv && lv.blinkBlocked && lv.blinkBlocked(point))) { sfx.locked(); ui.log('You can\'t blink into that.', 'warn'); return false; }
   if (!engine.spend(manaCost('blink'))) return false;
   fx.burst(p.pos.clone().setY(1), { count: 18, color: '#9fe8ff', size: 0.4, speed: 2 });
   p.pos.set(point.x, 0, point.z);

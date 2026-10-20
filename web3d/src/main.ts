@@ -205,6 +205,7 @@ const engine: any = {
 
   // ------------------------------------------------------------ co-op
   startCoop(peer) {
+    if (peer.closed) return;
     ui.closeDialog(true); ui.hideScreen();
     this.peer = peer;
     this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
@@ -236,7 +237,6 @@ const engine: any = {
     ui.closeDialog(true); ui.hideScreen();
     this.run = newRun(daily, daily ? 'daily-' + todaySeed() : null);
     this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
-    clearSave();
     this.nextRunRoom();
   },
 
@@ -311,6 +311,7 @@ const engine: any = {
   },
 
   setLevel(level) {
+    this.paused = false;
     if (demo) { demo.deactivate(); demo = null; }
     if (this.level) this.level.deactivate();
     this.level = level;
@@ -368,6 +369,7 @@ const engine: any = {
     sfx.roar();
     await ui.story(HELL_ENTRY);
     this.mode = 'play';
+    ui.showHUD(true);
     this.split('Hell');
     markChapter('room');
     const hell = new HellLevel(this, s);
@@ -386,7 +388,7 @@ const engine: any = {
     releaseLock();
     ui.flash('#ffffff', 1, 2000);
     this.split('Escape');
-    if (this.stats.time < 15 * 60) unlock('speed');
+    if (this.stats.time < 15 * 60 && !this.stats.partial) unlock('speed');
     if (this.roomState && this.roomState.mode === 'hard') unlock('hardmode');
     if (this.roomState && this.roomState.mode === 'daily') unlock('daily');
     markChapter('hell');
@@ -434,6 +436,7 @@ const engine: any = {
     await ui.story(WITCH_INTRO.slice(0, 1));
     this.mode = 'play';
     ui.showHUD(true);
+    delete s.talk;
     const wl = new WitchLevel(this, s);
     this.setLevel(wl);
     wl.phase = 'intro';
@@ -443,6 +446,8 @@ const engine: any = {
     ]);
     const effects = await runDialogue(WITCH_TALK, 'start', { flags: s.flags });
     wl.applyTalk(effects);
+    s.talk = effects;
+    saveGame({ version: 1, act: 'witch', room: s, stats: this.stats, savedAt: Date.now() });
     wl.phase = 'fight';
     wl.refreshHUD();
     if (!input.touch) requestLock();
@@ -566,6 +571,7 @@ function showTitle() {
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
   setHeartbeat(0);
   if (engine.level) engine.level.deactivate();
+  if (demo) demo.deactivate();
   demo = buildDemo(); engine.level = null;
   renderPass.scene = demo.scene; demo.scene.add(camera);
   demo.refreshLighting(); setHeartbeat(0); ui.setVignette('');
@@ -635,6 +641,7 @@ function chooseMode() {
 
 async function newGame(mode = 'normal', seed = null) {
   initAudio();
+  clearSave();
   ui.hideScreen();
   engine.mode = 'transition';
   engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
@@ -648,7 +655,6 @@ async function newGame(mode = 'normal', seed = null) {
 
 function startRoom(state) {
   engine.roomState = state;
-  demo = null;
   engine.mode = 'play';
   ui.hideScreen(); ui.showHUD(true);
   engine.setLevel(new RoomLevel(engine, state));
@@ -658,9 +664,13 @@ function startRoom(state) {
 function continueGame(fromDeath = false) {
   initAudio();
   const save = loadGame();
-  if (!save) { if (fromDeath) newGame(); return; }
+  const prev = engine.stats || {};
+  if (!save) { if (fromDeath) { const st = engine.roomState || {}; newGame(st.mode && ['normal', 'hard', 'daily'].includes(st.mode) ? st.mode : 'normal', st.seed || null); } return; }
   engine.stats = save.stats || { time: 0, deaths: 0, conjured: 0 };
-  if (fromDeath) engine.stats.deaths = Math.max(engine.stats.deaths, 0);
+  if (fromDeath) {
+    engine.stats.deaths = Math.max(engine.stats.deaths || 0, prev.deaths || 0);
+    engine.stats.time = Math.max(engine.stats.time || 0, prev.time || 0);
+  }
   ui.hideScreen();
   if (save.act === 'lesson') {
     engine.roomState = save.room;
@@ -786,7 +796,7 @@ function showEnding(kind = 'escape') {
   const mode = st.mode || 'normal';
   const prev: any = bestFor(mode, st.seed);
   const splits = engine.stats.splits || {};
-  const record = recordRun(mode, st.seed, t, splits);
+  const record = engine.stats.partial ? false : recordRun(mode, st.seed, t, splits);
   const rows = Object.entries<any>(splits).map(([k, v]) => {
     const b = prev && prev.splits && prev.splits[k];
     return `<tr><td>${k}</td><td>${ui.fmtTime(v)}</td><td class="${b === undefined ? '' : v <= b ? 'ahead' : 'behind'}">${b === undefined ? '' : ui.fmtDelta(v - b)}</td></tr>`;
@@ -831,10 +841,12 @@ function showCoop() {
 async function hostCoop() {
   const peer = new Peer();
   peer.onOpen = () => engine.startCoop(peer);
-  const box = ui.dialog({ title: '👑 Host', html: '<p>Creating your invite code…</p>', buttons: [{ label: 'Cancel', onClick: () => peer.close() }] });
+  ui.dialog({ title: '👑 Host', html: '<p>Creating your invite code…</p>', onClose: () => peer.close(), buttons: [{ label: 'Cancel' }] });
   const code = await peer.createOffer();
+  if (peer.closed) return;
   const b = ui.dialog({
     title: '👑 Host',
+    onClose: () => { if (!peer.open) peer.close(); },
     html: `<p><b>1.</b> Send this invite code to your partner:</p>${codeBox('co-offer', code, true)}
       <p><b>2.</b> Paste the reply code they send back:</p>${codeBox('co-answer')}`,
     buttons: [
@@ -842,7 +854,7 @@ async function hostCoop() {
       { label: '🔗 Connect', cls: 'primary', keep: true, onClick: async () => {
         try { await peer.acceptAnswer(b.querySelector<any>('#co-answer').value); ui.toast('Connecting…'); } catch (e) { ui.toast('That reply code didn\'t work.'); }
       } },
-      { label: 'Cancel', onClick: () => peer.close() },
+      { label: 'Cancel' },
     ],
   });
   b.querySelectorAll('textarea').forEach((t: any) => t.addEventListener('keydown', (e) => e.stopPropagation()));
@@ -852,6 +864,7 @@ function joinCoop() {
   peer.onOpen = () => engine.startCoop(peer);
   const b = ui.dialog({
     title: '🤝 Join',
+    onClose: () => { if (!peer.open) peer.close(); },
     html: `<p><b>1.</b> Paste the host's invite code:</p>${codeBox('co-offer')}<div id="co-reply"></div>`,
     buttons: [
       { label: 'Create my reply code', cls: 'primary', keep: true, onClick: async () => {
@@ -861,7 +874,7 @@ function joinCoop() {
           copyText(reply);
         } catch (e) { ui.toast('That invite code didn\'t work.'); }
       } },
-      { label: 'Cancel', onClick: () => peer.close() },
+      { label: 'Cancel' },
     ],
   });
   b.querySelectorAll('textarea').forEach((t: any) => t.addEventListener('keydown', (e) => e.stopPropagation()));
@@ -882,7 +895,7 @@ function showEndless() {
 
 function showCampaign() {
   const done = chaptersDone(), ld = lessonsDone();
-  const fresh = () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; };
+  const fresh = () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {}, partial: true }; };
   const chapters = [
     { n: '1', id: 'room', title: 'The Room', sub: 'A dark room. A lamp. A very smug PC.', open: true, done: done.includes('room'), go: () => chooseMode() },
     { n: '2', id: 'hell', title: 'Go To Hell', sub: 'Kraken 2.0 and the giant nail.', open: done.includes('room'), done: done.includes('hell'), go: () => { fresh(); engine.roomState = profileState(); ui.hideScreen(); engine.enterHell(); } },
@@ -897,7 +910,9 @@ function showCampaign() {
   box.querySelectorAll('.chapter').forEach((b: any) => b.addEventListener('click', () => {
     const c = chapters[+b.dataset.i];
     if (!c.open) return;
-    initAudio(); sfx.click(); ui.closeDialog(true); c.go();
+    initAudio(); sfx.click(); ui.closeDialog(true);
+    if (hasSave()) ui.dialog({ title: 'Replace your save?', html: '<p>Playing this chapter replaces your saved progress (the Continue button).</p>', buttons: [{ label: 'Yes, play it', cls: 'primary', onClick: c.go }, { label: 'Cancel', onClick: showCampaign }] });
+    else c.go();
   }));
 }
 
@@ -986,25 +1001,29 @@ function showSettings() {
   box.querySelector<any>('#s-keys').addEventListener('click', (e) => { e.stopPropagation(); showKeys(); });
 }
 
+let activeGrab = null;
+function dropGrab() { if (activeGrab) { removeEventListener('keydown', activeGrab, true); activeGrab = null; } }
 const keyName = (code) => code.replace(/^Key/, '').replace(/^Digit/, '').replace('Left', ' L').replace('Right', ' R');
 function showKeys() {
   const binds = getBindings();
   const box = ui.dialog({
     title: 'Remap keys',
+    onClose: dropGrab,
     html: `<p class="muted">Click a key, then press the new one. Arrows, Esc, Enter, Tab and 1–9 stay fixed.</p>
       ${Object.entries(BIND_LABELS).map(([a, l]) => `<div class="setting"><span>${l}</span><button class="btn keybind" data-a="${a}">${keyName(binds[a])}</button></div>`).join('')}`,
     buttons: [
       { label: 'Reset to defaults', keep: true, onClick: () => { settings.keys = {}; saveSettings(settings); applyA11y(); showKeys(); } },
-      { label: 'Back', onClick: showSettings },
+      { label: 'Back', onClick: () => { dropGrab(); showSettings(); } },
     ],
   });
   box.querySelectorAll<any>('.keybind').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
     box.querySelectorAll<any>('.keybind').forEach(x => x.classList.remove('listening'));
     b.classList.add('listening'); b.textContent = 'press a key…';
+    dropGrab();
     const grab = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      removeEventListener('keydown', grab, true);
+      dropGrab();
       if (ev.code !== 'Escape') {
         const a = b.dataset.a;
         // swap with whichever action already used this key
@@ -1015,6 +1034,7 @@ function showKeys() {
       }
       showKeys();
     };
+    activeGrab = grab;
     addEventListener('keydown', grab, true);
   }));
 }

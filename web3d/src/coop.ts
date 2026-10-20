@@ -85,6 +85,7 @@ export class CoopLevel extends ChamberLevel {
       } break;
       case 'spawn': if (!this.host) this.applySpawn(m.type, m.cell); break;
       case 'unlock': if (!this.host) this.unlockExit(); break;
+      case 'runes': if (!this.host && this.runes) { m.done.forEach((d, i) => { this.runes[i].done = d; }); this.refreshHUD(); } break;
       case 'plates': if (!this.host) this.showPlates(m.pressed); break;
       case 'done': this.finish(); break;
       case 'bye': this.partnerLeft(); break;
@@ -103,6 +104,7 @@ export class CoopLevel extends ChamberLevel {
   onLanded() {
     if (!this.host || !this.runes) return;
     for (const r of this.runes) { const o = this.objects.get(r.type); r.done = !!o && this.cellKey(o.cell) === this.cellKey(r.cell); }
+    this.peer.send({ t: 'runes', done: this.runes.map(r => r.done) });
     this.refreshHUD();
   }
 
@@ -163,17 +165,19 @@ export class CoopLevel extends ChamberLevel {
     this.phase = 'done';
     this.exit.door.userData.pivot.rotation.y = -1.5;
     sfx.win();
-    setTimeout(() => this.engine.coopDone(), 600);
+    setTimeout(() => { if (this.engine.level === this) this.engine.coopDone(); }, 600);
   }
   partnerLeft() {
     if (this.phase !== 'play') return;
     this.phase = 'done';
     ui.log('Your partner disconnected.', 'warn');
-    setTimeout(() => this.engine.coopLost(), 800);
+    setTimeout(() => { if (this.engine.level === this) this.engine.coopLost(); }, 800);
   }
 
   deactivate() {
     super.deactivate();
+    this.phase = 'left';
+    this.peer.onClose = () => {};
     if (this.off) this.off();
   }
 

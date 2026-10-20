@@ -9,7 +9,7 @@ import { loadPhysics, PhysicsWorld } from './physics';
 import { SPELLS, manaCost, learn, knows, castShrink, castBlink } from './spells';
 import { ring } from './textures';
 import { RADIUS } from './player';
-import { FX } from './fx';
+import { FX, disposeTree } from './fx';
 import { glowSprite } from './textures';
 import * as ui from './ui';
 import { sfx, playAmbience, setHeartbeat } from './audio';
@@ -97,6 +97,8 @@ export class RoomLevel {
     this.lantern.removeFromParent();
     this.scene.remove(this.camera);
     setHeartbeat(0);
+    this.gone = true;
+    disposeTree(this.scene);
   }
 
   restore() {
@@ -541,6 +543,14 @@ export class RoomLevel {
     const ps = this.state.player;
     ps.x = this.player.pos.x; ps.z = this.player.pos.z; ps.yaw = this.player.yaw;
     this.updateObjective();
+  }
+
+  /** Blink can't pass through closed walls into an annex. */
+  blinkBlocked(point) {
+    const to = this.room.annexAt(point.x, point.z);
+    const from = this.room.annexAt(this.player.pos.x, this.player.pos.z);
+    if (!to || to === from) return false;
+    return !(this.state.flags['door_' + to.side] && this.entities.has('door_' + to.side));
   }
 
   surface() {
