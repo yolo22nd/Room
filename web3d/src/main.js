@@ -27,10 +27,11 @@ import { Player } from './player.js';
 import { RoomLevel, freshRoomState, todaySeed } from './game.js';
 import { HellLevel } from './hell.js';
 import { WitchLevel } from './witch.js';
+import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share.js';
 import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story.js';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
-  ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun,
+  ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun, loadEditor, saveEditor,
 } from './save.js';
 
 const canvas = document.getElementById('view');
@@ -126,6 +127,9 @@ const engine = {
 
   autosave(force = false) {
     if (this.mode !== 'play' || !(this.level instanceof RoomLevel)) return;
+    const m = this.roomState && this.roomState.mode;
+    if (m === 'editor') { saveEditor(this.roomState); return; }
+    if (m === 'custom') return;
     if (!force && performance.now() - this.saveT < 1500) { this.pendingSave = true; return; }
     this.saveT = performance.now(); this.pendingSave = false;
     saveGame({ version: 1, act: 'room', room: this.roomState, stats: this.stats, savedAt: Date.now() });
@@ -164,6 +168,30 @@ const engine = {
         { label: 'Not today', onClick: () => { clearSave(); showEnding('escape'); } },
       ],
     });
+  },
+
+  customWin() {
+    this.mode = 'transition';
+    releaseLock();
+    ui.flash('#fff4d0', 0.9, 1200);
+    sfx.win();
+    unlock('custom');
+    const c = this.roomState.custom;
+    const back = this.returnToEditor;
+    ui.showHUD(false);
+    ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Escaped!</h1>
+      <div class="sub">${ui.escapeHtml(c.title)}</div>
+      <div class="stats">Time ........ ${ui.fmtTime(this.stats.time)}</div>
+      <div class="actions" style="margin-top:22px">
+        ${back ? '<button class="btn primary" id="c-edit">Back to the editor</button>' : '<button class="btn primary" id="c-again">Play again</button>'}
+        <button class="btn" id="c-make">Build your own room</button>
+        <button class="btn" id="c-title">Back to title</button>
+      </div></div>`);
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = () => { sfx.click(); fn(); }; };
+    on('c-edit', () => openEditor());
+    on('c-again', () => playCustom(c, this.customPlaced));
+    on('c-make', () => openEditor());
+    on('c-title', () => showTitle());
   },
 
   async startWitch() {
@@ -227,12 +255,16 @@ function showTitle() {
   renderPass.scene = demo.scene; demo.scene.add(camera);
   demo.refreshLighting(); setHeartbeat(0); ui.setVignette('');
   const cont = hasSave();
+  const code = roomCodeFromHash();
+  const shared = code ? decodeRoom(code) : null;
   ui.screen(`<div class="title-wrap">
       <h1>ROOM</h1>
       <div class="sub">a wizard · a room · a way through hell</div>
       <div class="actions">
-        ${cont ? '<button class="btn primary" id="t-continue">Continue</button>' : ''}
-        <button class="btn ${cont ? '' : 'primary'}" id="t-new">New game</button>
+        ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
+        ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
+        <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
+        <button class="btn" id="t-editor">🛠️ Room editor</button>
         <button class="btn" id="t-help">How to play</button>
         <button class="btn" id="t-ach">Achievements (${unlockedCount()}/${ACHIEVEMENTS.length})</button>
         <button class="btn" id="t-settings">Settings</button>
@@ -243,6 +275,8 @@ function showTitle() {
   on('t-continue', () => continueGame());
   on('t-new', () => { if (cont) ui.dialog({ title: 'Start over?', html: '<p>Your saved progress will be overwritten.</p>', buttons: [{ label: 'Yes, new game', cls: 'primary', onClick: chooseMode }, { label: 'Cancel' }] }); else chooseMode(); });
   on('t-help', () => showHelp());
+  on('t-editor', () => openEditor());
+  on('t-shared', () => { const d = decodeRoom(roomCodeFromHash()); if (d) playCustom(d.custom, d.placed); });
   on('t-ach', () => showAchievements());
   on('t-settings', () => showSettings());
   // music starts on first interaction
@@ -304,6 +338,105 @@ function continueGame(fromDeath = false) {
     if (s.hearts <= 0) s.hearts = s.maxHearts;
     startRoom(s);
   }
+}
+
+// ---------------------------------------------------------------- editor
+function openEditor() {
+  initAudio();
+  ui.closeDialog(true);
+  engine.returnToEditor = false;
+  const saved = loadEditor();
+  const st = saved && saved.mode === 'editor' ? saved : freshRoomState('editor');
+  st.hearts = st.maxHearts;
+  engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+  startRoom(st);
+  ui.log('ROOM EDITOR: conjure anything (no crushing here). Press Esc for the editor menu.', 'lore');
+}
+
+function playCustom(custom, placed, fromEditor = false) {
+  initAudio();
+  ui.closeDialog(true);
+  const st = freshRoomState('custom');
+  st.placed = JSON.parse(JSON.stringify(placed));
+  st.custom = { ...custom };
+  engine.returnToEditor = fromEditor;
+  engine.customPlaced = placed;
+  engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+  startRoom(st);
+  if (custom.note) ui.log(`A note from the builder: "${custom.note}"`, 'lore');
+  ui.log('Find the hidden key (search near furniture), then open the exit door.');
+}
+
+function editorProblems(st) {
+  const c = st.custom;
+  const p = [];
+  if (!c.keyIn || !st.placed[c.keyIn]) p.push('Hide the key in a piece of furniture.');
+  if (!c.exit || !st.placed['door_' + c.exit]) p.push('Conjure a door and mark it as the exit.');
+  return p;
+}
+
+function editorMenu() {
+  engine.paused = true;
+  releaseLock();
+  const st = engine.roomState, c = st.custom;
+  const resume = () => { engine.paused = false; requestLock(); };
+  const floors = Object.entries(st.placed).filter(([, p]) => p.type !== 'door' && !['tv', 'bathroom', 'kitchen', 'hell'].includes(p.type));
+  const doors = Object.entries(st.placed).filter(([, p]) => p.type === 'door');
+  const problems = editorProblems(st);
+  ui.dialog({
+    title: '🛠️ Room Editor',
+    html: `<p class="muted">${problems.length ? 'To share: ' + problems.join(' ') : 'Your room is ready to share!'}</p>`,
+    onClose: () => { engine.paused = false; },
+    buttons: [
+      { label: 'Keep building', cls: 'primary', onClick: resume },
+      { label: `🔑 Hide the key in… (${c.keyIn && st.placed[c.keyIn] ? st.placed[c.keyIn].type : 'not set'})`, onClick: () => ui.dialog({
+        title: 'Hide the key in…', html: floors.length ? '' : '<p>Conjure some furniture first.</p>',
+        onClose: () => { engine.paused = false; },
+        buttons: [...floors.map(([k, p]) => ({ label: `${p.type} (${p.slot})`, onClick: () => { c.keyIn = k; engine.autosave(); engine.level.refreshHUD(); ui.log(`The key is now hidden in the ${p.type}.`, 'good'); resume(); } })), { label: 'Back', onClick: editorMenu }],
+      }) },
+      { label: `🚪 Exit door… (${c.exit && st.placed['door_' + c.exit] ? c.exit + ' wall' : 'not set'})`, onClick: () => ui.dialog({
+        title: 'Which door is the exit?', html: doors.length ? '' : '<p>Conjure a door on a wall first.</p>',
+        onClose: () => { engine.paused = false; },
+        buttons: [...doors.map(([, p]) => ({ label: `Door on the ${p.slot} wall`, onClick: () => { c.exit = p.slot; engine.autosave(); engine.level.refreshHUD(); ui.log(`The ${p.slot} door is the exit.`, 'good'); resume(); } })), { label: 'Back', onClick: editorMenu }],
+      }) },
+      { label: '✏️ Title & note', onClick: () => {
+        const box = ui.dialog({
+          title: 'Title & note',
+          html: `<div class="setting"><span>Title</span><input id="ed-t" maxlength="60" value="${ui.escapeHtml(c.title)}" style="width:60%;font:15px var(--font);padding:6px;border-radius:6px;border:1px solid #45355e;background:#0d0a12;color:var(--text)"></div>
+            <p class="muted">A note players see when they start (hints welcome):</p>
+            <textarea id="ed-n" maxlength="400" rows="3" style="width:100%;font:14px var(--font);padding:8px;border-radius:6px;border:1px solid #45355e;background:#0d0a12;color:var(--text)">${ui.escapeHtml(c.note)}</textarea>`,
+          onClose: () => { engine.paused = false; },
+          buttons: [{ label: 'Save', cls: 'primary', onClick: () => { c.title = box.querySelector('#ed-t').value.trim() || 'My Room'; c.note = box.querySelector('#ed-n').value.trim(); engine.autosave(); resume(); } }, { label: 'Back', onClick: editorMenu }],
+        });
+        box.querySelectorAll('input,textarea').forEach(el => el.addEventListener('keydown', e => e.stopPropagation()));
+      } },
+      { label: '▶ Test play', disabled: problems.length > 0, onClick: () => { engine.autosave(); playCustom(c, st.placed, true); } },
+      { label: '🔗 Share link', disabled: problems.length > 0, onClick: () => showShare(st) },
+      { label: '🧹 Clear the room', cls: 'danger', onClick: () => ui.dialog({ title: 'Clear everything?', html: '<p>This removes all furniture from your editor room.</p>', buttons: [{ label: 'Yes, clear it', cls: 'primary', onClick: () => { saveEditor(null); openEditor(); } }, { label: 'Cancel', onClick: editorMenu }] }) },
+      { label: 'Quit to title', onClick: () => { engine.autosave(true); showTitle(); } },
+    ],
+  });
+}
+
+function showShare(st) {
+  const url = shareUrl(encodeRoom(st.placed, st.custom));
+  const box = ui.dialog({
+    title: '🔗 Share your room',
+    html: `<p>Anyone who opens this link can play <b>${ui.escapeHtml(st.custom.title)}</b>:</p>
+      <input id="share-url" readonly value="${url}" style="width:100%;font:13px var(--mono);padding:8px;border-radius:6px;border:1px solid #45355e;background:#0d0a12;color:var(--good)">
+      <p class="muted">The whole room lives inside the link — no server needed.</p>`,
+    onClose: () => { engine.paused = false; },
+    buttons: [
+      { label: '📋 Copy link', cls: 'primary', keep: true, onClick: () => {
+        const inp = box.querySelector('#share-url'); inp.select();
+        const done = () => { ui.toast('Link copied!'); unlock('architect'); };
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => { document.execCommand('copy'); done(); });
+        else { document.execCommand('copy'); done(); }
+      } },
+      { label: 'Back', onClick: editorMenu },
+    ],
+  });
+  unlock('architect');
 }
 
 function showEnding(kind = 'escape') {
@@ -381,6 +514,18 @@ function showSettings() {
 
 function pauseMenu() {
   if (engine.mode !== 'play') return;
+  if (engine.roomState && engine.roomState.mode === 'editor' && engine.level instanceof RoomLevel) { editorMenu(); return; }
+  if (engine.roomState && engine.roomState.mode === 'custom') {
+    engine.paused = true; releaseLock();
+    ui.dialog({ title: 'Paused', onClose: () => { engine.paused = false; }, buttons: [
+      { label: 'Resume', cls: 'primary', onClick: () => { engine.paused = false; requestLock(); } },
+      engine.returnToEditor ? { label: 'Back to the editor', onClick: () => openEditor() } : null,
+      { label: 'Restart this room', onClick: () => playCustom(engine.roomState.custom, engine.customPlaced, engine.returnToEditor) },
+      { label: 'How to play', onClick: () => showHelp() },
+      { label: 'Quit to title', cls: 'danger', onClick: () => showTitle() },
+    ] });
+    return;
+  }
   engine.paused = true;
   releaseLock();
   const inRoom = engine.level instanceof RoomLevel;
@@ -434,9 +579,11 @@ function frame() {
     if (playing) {
       engine.stats.time += dt;
       const st = engine.roomState;
-      if (settings.showTimer || (st && st.mode !== 'normal')) {
+      const timed = st && ['hard', 'daily', 'custom'].includes(st.mode);
+      if (st && st.mode !== 'editor' && (settings.showTimer || timed)) {
         const m = engine.splitMsg && engine.splitMsg.until > engine.stats.time ? engine.splitMsg : null;
-        ui.setTimer(engine.stats.time, m ? m.text : (st && st.mode !== 'normal' ? (st.mode === 'daily' ? 'daily ' + st.seed : 'hard') : ''), m ? m.cls : '');
+        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : '';
+        ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
       player.update(dt);
       engine.level.update(dt);

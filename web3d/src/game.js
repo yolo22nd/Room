@@ -43,6 +43,10 @@ export function freshRoomState(mode = 'normal', seed = null) {
     flags: { books: [] },
     player: { x: 0, z: 0, yaw: 0 },
   };
+  if (mode === 'editor' || mode === 'custom') {
+    st.lamp = 'hand'; st.lampOn = true;
+    st.custom = { title: 'My Room', note: '', keyIn: null, exit: null };
+  }
   if (mode === 'daily') {
     // some furniture is already here, and the invisible key hides in a random cell
     const rnd = seededRandom('room-' + seed);
@@ -248,6 +252,7 @@ export class RoomLevel {
   // ------------------------------------------------------------- conjuring
   openSpellbook() {
     if (this.placing) { this.cancelPlacing(); return; }
+    if (this.state.mode === 'custom') { ui.log('No conjuring in someone else\'s room. Find the key!', 'warn'); return; }
     const groups = { hand: 'In your hand', floor: 'Floor — lands on the cell you aim at', wall: 'Wall — the wall you face', beyond: 'Beyond — outside the wall you face', junk: 'Junk — physics toys, land exactly where you aim (as many as you like)' };
     let html = this.engine.touch
       ? '<p class="muted">Pick something to conjure. It will fall from the sky. Aim, then tap <b>Cast</b>. <b>Use</b> rotates, <b>Spells</b> cancels.</p>'
@@ -407,6 +412,7 @@ export class RoomLevel {
   }
 
   conjureAt(type, slot, rot = this.defaultRot(type, slot)) {
+    if (this.state.mode === 'custom') { ui.log('No conjuring in someone else\'s room.', 'warn'); return false; }
     const err = this.placementError(type, slot);
     if (err) { sfx.locked(); ui.log(err, 'warn'); return false; }
     const key = this.keyFor(type, slot);
@@ -660,7 +666,7 @@ export class RoomLevel {
     if (kind === 'floor') {
       const r = ent.type === 'pc' ? this.footprint('cushion', ent.slot, 0) : ent.rect;
       const p = this.player.pos;
-      if (p.x > r.minX - RADIUS && p.x < r.maxX + RADIUS && p.z > r.minZ - RADIUS && p.z < r.maxZ + RADIUS) {
+      if (this.state.mode !== 'editor' && p.x > r.minX - RADIUS && p.x < r.maxX + RADIUS && p.z > r.minZ - RADIUS && p.z < r.maxZ + RADIUS) {
         ui.log(`The ${CATALOG[ent.type].name.toLowerCase()} lands squarely on your head. You should really look up more.`, 'warn');
         unlock('crushed');
         this.pushOut(r);
@@ -1121,6 +1127,14 @@ export class RoomLevel {
   use_door(f) {
     const side = f.key.split('_')[1];
     const open = !!this.state.flags[f.key];
+    const c = this.state.custom;
+    if (this.state.mode === 'custom' && c && c.exit === side) {
+      if (!this.state.flags.customKey) { sfx.locked(); ui.log('The exit door is locked. The key is hidden somewhere in this room — search near the furniture (G).', 'warn'); return; }
+      sfx.key(); this.setDoor(side, true);
+      ui.log('The key turns. Daylight pours in!', 'good');
+      setTimeout(() => this.engine.customWin(), 900);
+      return;
+    }
     if (open) { this.setDoor(side, false); ui.log('You closed the door.'); return; }
     const a = this.room.annexes[side];
     if (a && a.type === 'hell' && !this.state.flags.hellKeyTaken) {
@@ -1200,6 +1214,7 @@ export class RoomLevel {
   search() {
     const fl = this.state.flags;
     if (this.player.sitting && this.player.sitting !== 'cushion') { ui.log('You need to stand (or sit on the floor) to search.'); return; }
+    if (this.state.mode === 'custom' || this.state.mode === 'editor') { this.searchCustom(); return; }
     const pc = this.entities.get('pc');
     const here = cellAt(this.player.pos.x, this.player.pos.z);
     ui.log('You start searching, placing your hands on the floor around you...');
@@ -1219,8 +1234,47 @@ export class RoomLevel {
     }, 900);
   }
 
+  // custom rooms: the key hides in (or under) one object
+  nearestEntity() {
+    let best = null, bd = Infinity;
+    const p = this.player.pos;
+    for (const e of this.entities.values()) {
+      if (CATALOG[e.type].kind !== 'floor') continue;
+      const r = e.rect || this.footprint('cushion', e.slot, 0);
+      const dx = Math.max(r.minX - p.x, 0, p.x - r.maxX), dz = Math.max(r.minZ - p.z, 0, p.z - r.maxZ);
+      const d = Math.hypot(dx, dz);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return bd < 1.4 ? best : null;
+  }
+  searchCustom() {
+    const c = this.state.custom, fl = this.state.flags;
+    const e = this.nearestEntity();
+    if (!e) { ui.log('You search the bare floor. Nothing. Try searching next to the furniture.'); return; }
+    sfx.click();
+    ui.log(`You search around the ${CATALOG[e.type].name.toLowerCase()}...`);
+    setTimeout(() => {
+      if (this.state.mode === 'editor') { ui.log(c.keyIn === e.key ? 'This is where your key is hidden.' : 'Nothing here. (Editor: pick the key spot from the Esc menu.)'); return; }
+      if (fl.customKey) { ui.log('You already found the key.'); return; }
+      if (c.keyIn === e.key) {
+        fl.customKey = true; sfx.key();
+        const k = makeGhostKey(); k.position.set(this.player.pos.x + this.player.forward().x * 0.6, 0.3, this.player.pos.z + this.player.forward().z * 0.6);
+        this.scene.add(k); this.ghostKeyFx = { obj: k, t: 0 };
+        ui.log(`Hidden in the ${CATALOG[e.type].name.toLowerCase()}: THE KEY! Now find the exit door.`, 'good');
+        this.refreshHUD();
+      } else {
+        const lines = ['Dust bunnies. Lots of them.', 'A single sock. Not yours.', 'Nothing but a note: "nope :)"', 'Cobwebs. A disappointed spider.', 'Nothing here.'];
+        ui.log(lines[Math.floor(Math.random() * lines.length)]);
+      }
+    }, 700);
+  }
+
   enterPortal() {
     if (this.enteringHell) return;
+    if (this.state.mode === 'editor' || this.state.mode === 'custom') {
+      if (this.time - (this.portalMsgT || -9) > 4) { this.portalMsgT = this.time; ui.log('In a custom room, Hell is just decoration. (Phew.)', 'lore'); }
+      return;
+    }
     this.enteringHell = true;
     if (this.engine.stats.conjured <= 8) unlock('minimalist');
     this.engine.enterHell();
@@ -1344,7 +1398,12 @@ export class RoomLevel {
   updateObjective() {
     const s = this.state, fl = s.flags;
     let o;
-    if (!s.lamp) o = 'It\'s pitch dark. Open your spellbook (Q) and conjure a lamp.';
+    if (s.mode === 'editor') {
+      const c = s.custom;
+      o = !c.keyIn ? 'EDITOR: build your room, then hide the key (Esc menu).' : !c.exit ? 'EDITOR: conjure a door and mark it as the exit (Esc menu).' : 'EDITOR: ready! Test play or share it from the Esc menu.';
+    } else if (s.mode === 'custom') {
+      o = fl.customKey ? 'Find the exit door and open it.' : `"${s.custom.title}" — find the hidden key (search near furniture with G).`;
+    } else if (!s.lamp) o = 'It\'s pitch dark. Open your spellbook (Q) and conjure a lamp.';
     else if (s.lamp !== 'hand') o = 'Pick your lamp back up.';
     else if (!s.lampOn) o = 'Turn on the lamp (F).';
     else if (!fl.hellKeyTaken && !fl.showKey && !fl.pcWon) o = 'Find a way out. Conjure things — the books, or a PC, might know something.';
@@ -1369,6 +1428,8 @@ export class RoomLevel {
     if (fl.hellKeyTaken) inv.push('🗝️ <b>H key</b>');
     if (fl.nailKnown) inv.push('📌 <b>Giant Nail</b> spell');
     if (fl.stewCooked && !fl.stewEaten) inv.push('🍲 <b>Ember stew</b>');
+    if (fl.customKey) inv.push('🗝️ <b>Exit key</b>');
+    if (s.mode === 'editor' && s.custom) inv.push(`🔑 key: <b>${s.custom.keyIn ? CATALOG[(s.placed[s.custom.keyIn] || {}).type]?.name || '?' : 'not hidden'}</b>`, `🚪 exit: <b>${s.custom.exit ? SIDE_NAMES[s.custom.exit] + ' door' : 'none'}</b>`);
     if (fl.wand) inv.push('🪄 <b>Ember Wand</b>');
     if (fl.cloak) inv.push('🧥 <b>Cloak</b>');
     if (fl.diary) inv.push('📓 <b>Diary</b>');

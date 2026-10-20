@@ -13,6 +13,9 @@ function write(key, value) {
 }
 
 export const loadGame = () => read(SAVE_KEY);
+const EDITOR_KEY = 'room3d.editor.v1';
+export const loadEditor = () => read(EDITOR_KEY);
+export const saveEditor = (s) => write(EDITOR_KEY, s);
 export const saveGame = (state) => write(SAVE_KEY, state);
 export const hasSave = () => !!read(SAVE_KEY);
 export function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
@@ -58,6 +61,8 @@ export const ACHIEVEMENTS = [
   { id: 'witch', icon: '🧙', name: 'The Apprentice', desc: 'Win the rematch against the witch.' },
   { id: 'lemon', icon: '🍋', name: 'When Life Gives You Lemons', desc: 'Stun the witch with the judgmental lemon.' },
   { id: 'witchflawless', icon: '✨', name: 'Not a Scratch', desc: 'Beat the witch without losing a heart.' },
+  { id: 'architect', icon: '📐', name: 'Architect', desc: 'Share a room you built in the editor.' },
+  { id: 'custom', icon: '🚪', name: 'Guest Star', desc: 'Escape a custom room.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
   { id: 'smash', icon: '🔨', name: 'Who Needs Keys', desc: 'Smash the showcase with a falling anvil.' },
   { id: 'vault', icon: '🔓', name: 'Safecracker', desc: 'Open the witch\'s vault on the PC.' },
