@@ -665,7 +665,8 @@ const clock = new THREE.Clock();
 let titleT = 0;
 function frame() {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, clock.getDelta());
+  const dt = (window as any).__freeze ? (clock.getDelta(), 0) : Math.min(0.05, clock.getDelta());
+  engine.frames = (engine.frames || 0) + 1;
   const busy = ui.isDialogOpen() || !document.getElementById('screen').classList.contains('hidden');
   const playing = engine.mode === 'play' && engine.level && !engine.paused;
   input.enabled = playing && !busy;

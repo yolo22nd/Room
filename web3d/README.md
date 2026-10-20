@@ -114,8 +114,15 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 ## Tests
 
 ```bash
-npm test     # builds, serves on :4173 and runs the Playwright suite (headless Chromium)
+npm run typecheck   # tsc
+npm run test:unit   # Vitest: state/daily seed, share codec, mana, bests, achievements
+npm run test:e2e    # Playwright: builds, serves on :4173, runs the browser suite
+npm test            # both
 ```
+
+Visual regression snapshots live in `tests/visual.spec.js-snapshots/` (frozen time, seeded randomness).
+Update them deliberately with `npx playwright test visual --update-snapshots`. `tests/perf.spec.js` enforces a
+bundle-size and draw-call budget.
 
 The suite covers the title screen, the Act 1 puzzle chain, the command line, the secrets, both boss fights,
 physics (the anvil smash) and the editor's share-and-play round trip. It drives the game through
