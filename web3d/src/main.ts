@@ -31,7 +31,29 @@ import { RoomLevel, freshRoomState, todaySeed } from './game';
 import { HellLevel } from './hell';
 import { WitchLevel } from './witch';
 import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share';
-import { ENDINGS, recordEnding, seenEndings, trueEndingReady } from './endings';
+import { ENDINGS, ENDING_IDS, recordEnding, seenEndings, trueEndingReady } from './endings';
+import { LESSONS, LESSON_ORDER } from './lessons';
+import { ChamberLevel } from './chamber';
+
+// What carries over between parts: spells, secrets and upgrades.
+const PROFILE_KEY = 'room3d.profile.v1';
+function saveProfile(s) {
+  if (!s) return;
+  const fl = s.flags || {};
+  const keep = { spells: fl.spells, wand: fl.wand, cloak: fl.cloak, diary: fl.diary, lemon: fl.lemon, books: fl.books, crystal: fl.crystal };
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ flags: keep, maxHearts: s.maxHearts, maxMana: s.maxMana || 100, placed: s.placed, mode: s.mode === 'hard' ? 'hard' : 'normal' })); } catch (e) { /* ignore */ }
+}
+function profileState() {
+  let p: any = null;
+  try { p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { p = null; }
+  const s = freshRoomState(p && p.mode === 'hard' ? 'hard' : 'normal');
+  if (p) { Object.assign(s.flags, p.flags || {}); s.maxHearts = Math.max(s.maxHearts, p.maxHearts || 0); s.maxMana = p.maxMana || 100; s.placed = p.placed || {}; }
+  s.hearts = s.maxHearts; s.mana = s.maxMana || 100; s.lamp = 'hand'; s.lampOn = true; s.shoes = 'shoes';
+  return s;
+}
+const lessonsUnlocked = () => seenEndings().some(e => ['apprentice', 'rival', 'true'].includes(e));
+const LESSONS_DONE_KEY = 'room3d.lessons.v1';
+const lessonsDone = (): string[] => { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_KEY) || '[]'); } catch (e) { return []; } };
 import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
@@ -182,7 +204,7 @@ const engine: any = {
     this.stats.deaths++;
     setHeartbeat(0);
     releaseLock();
-    const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel;
+    const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel || this.level instanceof ChamberLevel;
     ui.closeDialog(true);
     ui.screen(`<div class="title-wrap"><h1 style="font-size:64px">You died</h1><p class="sub">${ui.escapeHtml(why || 'it happens')}</p>
       <div class="actions"><button class="btn primary" id="retry">${inHell ? 'Retry the fight' : 'Load last save'}</button><button class="btn" id="totitle">Back to title</button></div></div>`);
@@ -291,14 +313,60 @@ const engine: any = {
     });
   },
 
+  async startLesson(id, intro = true) {
+    this.mode = 'transition';
+    releaseLock();
+    ui.closeDialog(true); ui.hideScreen();
+    const s = this.roomState && this.roomState.lesson === id ? this.roomState : profileState();
+    s.lesson = id; s.hearts = s.maxHearts; s.maxMana = s.maxMana || 100; s.mana = s.maxMana;
+    this.roomState = s;
+    if (!this.stats || this.mode === 'title') this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+    saveGame({ version: 1, act: 'lesson', lesson: id, room: s, stats: this.stats, savedAt: Date.now() });
+    if (intro) await ui.story([`<em>PART 4 — THE THREE LESSONS</em>\n\n${LESSONS[id].title}`]);
+    this.mode = 'play';
+    ui.showHUD(true);
+    this.setLevel(LESSONS[id].make(this, s));
+  },
+
+  retryChapter(id) {
+    this.stats.deaths++;
+    this.startLesson(id, false);
+  },
+
+  chapterDone(id) {
+    this.mode = 'transition';
+    releaseLock();
+    const done = new Set(lessonsDone()); done.add(id);
+    try { localStorage.setItem(LESSONS_DONE_KEY, JSON.stringify([...done])); } catch (e) { /* ignore */ }
+    this.split(LESSONS[id].title.split(' — ')[1]);
+    saveProfile(this.roomState);
+    const next = LESSON_ORDER[LESSON_ORDER.indexOf(id) + 1];
+    if (next) {
+      ui.dialog({
+        title: 'Lesson complete!', html: `<p>${LESSONS[id].title.split(' — ')[1]}: passed.</p>`, dismissable: false,
+        buttons: [{ label: `▶ ${LESSONS[next].title}`, cls: 'primary', onClick: () => this.startLesson(next) }, { label: 'Back to title', onClick: () => { clearSave(); showTitle(); } }],
+      });
+      return;
+    }
+    clearSave();
+    unlock('lessons');
+    ui.story([
+      'The tower stops. The library drains. Somewhere, the upside-down room quietly rights itself.',
+      'The witch claps, slowly. "Three for three. I didn\'t think you\'d manage the tower. Nobody manages the tower."',
+      '"Next term: the Witch Exams. Bring a sofa."',
+      '<em>PART 4 COMPLETE</em>',
+    ]).then(() => showEnding('lessons'));
+  },
+
   async endWith(id) {
     this.mode = 'transition';
     releaseLock();
     clearSave();
+    saveProfile(this.roomState);
     const n = recordEnding(id);
     if (id === 'true') unlock('trueending');
     if (id === 'redecorator') unlock('redecorator');
-    if (n >= Object.keys(ENDINGS).length) unlock('allendings');
+    if (n >= ENDING_IDS.length) unlock('allendings');
     if (ENDINGS[id].story) await ui.story(ENDINGS[id].story);
     showEnding(id);
   },
@@ -352,10 +420,11 @@ function showTitle() {
         ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
         ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
         <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
+        ${lessonsUnlocked() ? `<button class="btn" id="t-lessons">📜 Part 4: The Three Lessons (${lessonsDone().length}/3)</button>` : ''}
         <button class="btn" id="t-editor">🛠️ Room editor</button>
         <button class="btn" id="t-help">How to play</button>
         <button class="btn" id="t-ach">Achievements (${unlockedCount()}/${ACHIEVEMENTS.length})</button>
-        <button class="btn" id="t-endings">Endings (${seenEndings().length}/${Object.keys(ENDINGS).length})</button>
+        <button class="btn" id="t-endings">Endings (${seenEndings().length}/${ENDING_IDS.length})</button>
         <button class="btn" id="t-settings">Settings</button>
       </div>
       <div class="foot">A 3D reimagining of “Room”, a Java command-line game.<br>Headphones recommended.</div>
@@ -365,6 +434,10 @@ function showTitle() {
   on('t-new', () => { if (cont) ui.dialog({ title: 'Start over?', html: '<p>Your saved progress will be overwritten.</p>', buttons: [{ label: 'Yes, new game', cls: 'primary', onClick: chooseMode }, { label: 'Cancel' }] }); else chooseMode(); });
   on('t-help', () => showHelp());
   on('t-editor', () => openEditor());
+  on('t-lessons', () => ui.dialog({
+    title: 'Part 4: The Three Lessons',
+    buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
+  }));
   on('t-shared', () => { const d = decodeRoom(roomCodeFromHash()); if (d) playCustom(d.custom, d.placed); });
   on('t-ach', () => showAchievements());
   on('t-endings', () => showEndings());
@@ -418,6 +491,11 @@ function continueGame(fromDeath = false) {
   engine.stats = save.stats || { time: 0, deaths: 0, conjured: 0 };
   if (fromDeath) engine.stats.deaths = Math.max(engine.stats.deaths, 0);
   ui.hideScreen();
+  if (save.act === 'lesson') {
+    engine.roomState = save.room;
+    engine.startLesson(save.lesson, false);
+    return;
+  }
   if (save.act === 'hell' || save.act === 'witch') {
     const s = save.room; s.hearts = s.maxHearts;
     engine.roomState = s;
@@ -548,18 +626,19 @@ function showEnding(kind = 'escape') {
     <div class="sub">${ENDINGS[kind].sub} <span class="mode-badge">${modeName}</span></div>
     <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
     ${rows ? `<table class="splits">${rows}</table>` : ''}
-    <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button><button class="btn" id="e-title">Back to title</button></div>
-    <div class="foot">${ENDINGS[kind].foot}<br>Endings found: ${seenEndings().length}/${Object.keys(ENDINGS).length}</div></div>`);
+    <div class="actions" style="margin-top:22px"><button class="btn primary" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button>${['apprentice', 'rival', 'true'].includes(kind) ? '<button class="btn primary" id="e-lessons">▶ Part 4: The Three Lessons</button>' : ''}<button class="btn" id="e-title">Back to title</button></div>
+    <div class="foot">${ENDINGS[kind].foot}<br>Endings found: ${seenEndings().length}/${ENDING_IDS.length}</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
   document.getElementById('e-end').onclick = () => showEndings();
+  const el = document.getElementById('e-lessons'); if (el) el.onclick = () => { sfx.click(); engine.startLesson('upside'); };
   document.getElementById('e-title').onclick = () => showTitle();
 }
 
 function showEndings() {
   const seen = seenEndings();
   ui.dialog({
-    title: `Endings ${seen.length}/${Object.keys(ENDINGS).length}`,
-    html: `<div class="ach-list">${Object.entries<any>(ENDINGS).map(([id, e]) => seen.includes(id)
+    title: `Endings ${seen.length}/${ENDING_IDS.length}`,
+    html: `<div class="ach-list">${ENDING_IDS.map(id => [id, ENDINGS[id]]).map(([id, e]: any) => seen.includes(id)
       ? `<div class="ach"><span class="ico">🎬</span><div>${e.title}<small>${e.sub}</small></div></div>`
       : `<div class="ach locked"><span class="ico">🔒</span><div>???<small>${e.hint}</small></div></div>`).join('')}</div>`,
     buttons: [{ label: 'Close' }],
@@ -750,7 +829,8 @@ function frame() {
         ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
       if (st) {
-        if (st.mana === undefined) st.mana = st.maxMana = 100;
+        if (!st.maxMana) st.maxMana = 100;
+        if (st.mana === undefined || Number.isNaN(st.mana)) st.mana = st.maxMana;
         const rate = (engine.level instanceof RoomLevel ? 10 : 16) * (st.mode === 'hard' ? 0.7 : 1);
         st.mana = st.mode === 'editor' ? st.maxMana : Math.min(st.maxMana, st.mana + rate * dt);
         ui.setMana(st.mode === 'editor' ? null : st.mana, st.maxMana);

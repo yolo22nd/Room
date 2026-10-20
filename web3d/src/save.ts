@@ -68,6 +68,7 @@ export const ACHIEVEMENTS = [
   { id: 'trueending', icon: '🕯️', name: 'The Truth', desc: 'See the true ending.' },
   { id: 'redecorator', icon: '🛋️', name: 'They Always Redecorate', desc: 'Stay in the room forever.' },
   { id: 'allendings', icon: '🎬', name: 'Completionist', desc: 'See all five endings.' },
+  { id: 'lessons', icon: '📜', name: 'Top of the Class', desc: 'Pass all three of the witch\'s lessons.' },
   { id: 'speed', icon: '⏱️', name: 'Speedrun Sorcerer', desc: 'Finish the game in under 15 minutes.' },
   { id: 'smash', icon: '🔨', name: 'Who Needs Keys', desc: 'Smash the showcase with a falling anvil.' },
   { id: 'vault', icon: '🔓', name: 'Safecracker', desc: 'Open the witch\'s vault on the PC.' },

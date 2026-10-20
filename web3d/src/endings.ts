@@ -43,6 +43,10 @@ export const ENDINGS = {
       '<em>TRUE ENDING: THE TRUTH</em>',
     ],
   },
+  lessons: {
+    title: 'Three for Three', sub: 'part 4 · the three lessons passed',
+    hint: 'Pass all three of the witch\'s lessons.', foot: 'Next term: the Witch Exams.', notEnding: true,
+  },
   redecorator: {
     title: 'The Redecorator', sub: 'you had the key · you stayed',
     hint: '"Most people just stay in the room and redecorate."',
@@ -57,6 +61,7 @@ export const ENDINGS = {
   },
 };
 export type EndingId = keyof typeof ENDINGS;
+export const ENDING_IDS = Object.keys(ENDINGS).filter(k => !(ENDINGS as any)[k].notEnding);
 
 const KEY = 'room3d.endings.v1';
 export function seenEndings(): string[] {
@@ -65,7 +70,7 @@ export function seenEndings(): string[] {
 export function recordEnding(id: EndingId) {
   const s = new Set(seenEndings()); s.add(id);
   try { localStorage.setItem(KEY, JSON.stringify([...s])); } catch (e) { /* ignore */ }
-  return s.size;
+  return [...s].filter(x => ENDING_IDS.includes(x)).length;
 }
 
 /** The true ending needs all three secrets and every book read. */
