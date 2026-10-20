@@ -20,7 +20,7 @@ export const saveGame = (state) => write(SAVE_KEY, state);
 export const hasSave = () => !!read(SAVE_KEY);
 export function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
 
-export const defaultSettings = { music: 0.6, sfx: 0.8, sensitivity: 1, invertY: false, quality: 'high', showTimer: false, reducedMotion: false, palette: 'standard', captions: false, textScale: 1, keys: {}, voice: false };
+export const defaultSettings = { music: 0.6, sfx: 0.8, sensitivity: 1, invertY: false, quality: 'high', showTimer: false, reducedMotion: false, palette: 'standard', captions: false, textScale: 1, keys: {}, voice: false, autoRes: true, showFps: false };
 
 // personal bests: { normal: {total, splits}, hard: {...}, daily: { 'YYYY-MM-DD': {total, splits} } }
 const BEST_KEY = 'room3d.best.v1';

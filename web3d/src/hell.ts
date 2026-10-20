@@ -171,6 +171,12 @@ export class HellLevel extends BossLevel {
     this.tentacleSkin = new THREE.MeshStandardMaterial({ map: this.skinTex, color: 0xffffff, roughness: 0.45, metalness: 0.05, emissive: 0x200008 });
     this.suckerGeo = new THREE.TorusGeometry(0.16, 0.06, 6, 12);
     this.suckerMat = new THREE.MeshStandardMaterial({ color: 0xd8869a, roughness: 0.6 });
+    // all suckers of all tentacles are one instanced draw call
+    const perT = Math.ceil((SEGMENTS - 1 - 6) / 2);
+    this.suckerMesh = new THREE.InstancedMesh(this.suckerGeo, this.suckerMat, perT * TENTACLES);
+    this.suckerMesh.frustumCulled = false;
+    this.scene.add(this.suckerMesh);
+    let suckerIdx = 0;
     const tipMat = new THREE.MeshStandardMaterial({ color: 0xff7040, emissive: 0xff3000, emissiveIntensity: 0 });
     for (let i = 0; i < TENTACLES; i++) {
       const ang = Math.PI * (0.18 + i * 0.16); // spread across the front
@@ -185,7 +191,7 @@ export class HellLevel extends BossLevel {
       // suckers along the underside
       const suckers = [];
       for (let k2 = 6; k2 < SEGMENTS - 1; k2 += 2) {
-        const s = new THREE.Mesh(this.suckerGeo, this.suckerMat); this.scene.add(s); suckers.push({ m: s, k: k2 });
+        suckers.push({ m: new THREE.Object3D(), k: k2, idx: suckerIdx++ });
       }
       this.tentacles.push({
         i, root, segs, tube, suckers, state: 'idle', t: Math.random() * 5, timer: 0,
@@ -389,7 +395,10 @@ export class HellLevel extends BossLevel {
       s.m.position.copy(a).add(new THREE.Vector3(0, -r * 0.92, 0));
       s.m.lookAt(b.x, b.y - r * 0.92 - 1, b.z);
       s.m.scale.setScalar(r * 1.4);
+      s.m.updateMatrix();
+      this.suckerMesh.setMatrixAt(s.idx, s.m.matrix);
     }
+    this.suckerMesh.instanceMatrix.needsUpdate = true;
     const tipMat = T.segs[SEGMENTS - 1].material;
     tipMat.emissiveIntensity = T.state === 'down' ? 1.5 + Math.sin(this.time * 10) * 0.8 : (T.state === 'pinned' ? 0.3 : 0);
   }

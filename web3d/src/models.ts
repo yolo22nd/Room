@@ -58,6 +58,23 @@ export function rbox(w, h, d, mat, x = 0, y = 0, z = 0, parent, r = 0.06) {
   if (parent) parent.add(m);
   return m;
 }
+/** Many coloured boxes as one draw call. books: [{ w, h, d, x, y, z, rz, color }] */
+const bookMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+export function instancedBooks(books, parent, castShadow = true) {
+  const im = new THREE.InstancedMesh(unitBox, bookMat, books.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+  books.forEach((b, i) => {
+    q.setFromEuler(e.set(0, 0, b.rz || 0));
+    m.compose(new THREE.Vector3(b.x, b.y, b.z), q, new THREE.Vector3(b.w, b.h, b.d));
+    im.setMatrixAt(i, m);
+    im.setColorAt(i, c.set(b.color));
+  });
+  im.castShadow = castShadow; im.receiveShadow = true;
+  if (parent) parent.add(im);
+  return im;
+}
+
 export function cyl(rt, rb, h, mat, x = 0, y = 0, z = 0, parent, seg = 16) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
   m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
@@ -169,6 +186,7 @@ const builders = {
     const hues = [0, 25, 45, 120, 200, 260, 300, 340];
     let seed = 3;
     const r = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const books = [];
     for (let i = 0; i < 5; i++) {
       const y = 0.05 + i * 0.55;
       box(W, 0.04, D, M.wood, 0, y, 0, g);
@@ -176,12 +194,12 @@ const builders = {
       let x = -W / 2 + 0.08;
       while (x < W / 2 - 0.12) {
         const bw = 0.05 + r() * 0.07, bh = 0.32 + r() * 0.14;
-        const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hues[Math.floor(r() * hues.length)] / 360, 0.5, 0.25 + r() * 0.15), roughness: 0.8 });
-        const b = box(bw, bh, 0.34, mat, x + bw / 2, y + 0.02 + bh / 2, 0.02, g);
-        if (r() < 0.08) b.rotation.z = 0.2;
+        const color = new THREE.Color().setHSL(hues[Math.floor(r() * hues.length)] / 360, 0.5, 0.25 + r() * 0.15);
+        books.push({ w: bw, h: bh, d: 0.34, x: x + bw / 2, y: y + 0.02 + bh / 2, z: 0.02, rz: r() < 0.08 ? 0.2 : 0, color });
         x += bw + 0.005;
       }
     }
+    instancedBooks(books, g);
     box(W, 0.06, D, M.wood, 0, H, 0, g);
     return g;
   },

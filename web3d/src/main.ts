@@ -94,9 +94,23 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 0.82);
 const grain = new ShaderPass(GrainShader);
 composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(new OutputPass()); composer.addPass(grain);
 
+// adaptive resolution: drop the render scale when frames are slow, raise it back when fast
+let resScale = 1, slowT = 0, fastT = 0, frameEma = 16, lastNow = performance.now(), fpsShown = 0;
+function adaptResolution() {
+  const now = performance.now(), ms = now - lastNow; lastNow = now;
+  frameEma = frameEma * 0.92 + Math.min(ms, 200) * 0.08;
+  const fpsEl = document.getElementById('fps');
+  if (settings.showFps) { if (now - fpsShown > 500) { fpsShown = now; fpsEl.textContent = `${Math.round(1000 / frameEma)} fps · ${Math.round(resScale * 100)}%`; } fpsEl.classList.remove('hidden'); } else fpsEl.classList.add('hidden');
+  if (!settings.autoRes || engine.mode !== 'play' || document.hidden) { slowT = fastT = 0; return; }
+  const dt = ms / 1000;
+  if (frameEma > 25) { slowT += dt; fastT = 0; if (slowT > 1.5 && resScale > 0.5) { resScale = Math.max(0.5, +(resScale - 0.15).toFixed(2)); applyQuality(); slowT = 0; } }
+  else if (frameEma < 15) { fastT += dt; slowT = 0; if (fastT > 4 && resScale < 1) { resScale = Math.min(1, +(resScale + 0.1).toFixed(2)); applyQuality(); fastT = 0; } }
+  else slowT = fastT = 0;
+}
+
 function applyQuality() {
   const high = settings.quality === 'high';
-  renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 2 : 1));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 2 : 1) * resScale);
   renderer.shadowMap.enabled = high;
   bloom.enabled = high;
   grain.enabled = high;
@@ -931,6 +945,8 @@ function showSettings() {
       <div class="settings-section">Display</div>
       <div class="setting"><span>Graphics</span>${sel('s-q', [['high', 'High (shadows, bloom)'], ['low', 'Low (faster)']], settings.quality)}</div>
       <div class="setting"><span>Text size</span>${sel('s-text', [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']], settings.textScale)}</div>
+      <div class="setting"><span>Auto resolution<br><small class="muted">lowers the render scale to keep it smooth</small></span>${chk('s-autores', settings.autoRes)}</div>
+      <div class="setting"><span>Show FPS</span>${chk('s-fps', settings.showFps)}</div>
       <div class="setting"><span>Speedrun timer</span>${chk('s-timer', settings.showTimer)}</div>
       <div class="settings-section">Accessibility</div>
       <div class="setting"><span>Reduced motion<br><small class="muted">no camera shake, head-bob or bright flashes</small></span>${chk('s-motion', settings.reducedMotion)}</div>
@@ -946,6 +962,9 @@ function showSettings() {
     settings.quality = box.querySelector<any>('#s-q').value;
     settings.captions = box.querySelector<any>('#s-cap').checked;
     settings.voice = box.querySelector<any>('#s-voice').checked;
+    settings.autoRes = box.querySelector<any>('#s-autores').checked;
+    settings.showFps = box.querySelector<any>('#s-fps').checked;
+    if (!settings.autoRes && resScale !== 1) { resScale = 1; }
     settings.reducedMotion = box.querySelector<any>('#s-motion').checked;
     settings.palette = box.querySelector<any>('#s-pal').value;
     settings.textScale = +box.querySelector<any>('#s-text').value;
@@ -1033,6 +1052,7 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = (window as any).__freeze ? (clock.getDelta(), 0) : Math.min(0.05, clock.getDelta());
   engine.frames = (engine.frames || 0) + 1;
+  adaptResolution();
   const busy = ui.isDialogOpen() || !document.getElementById('screen').classList.contains('hidden');
   const playing = engine.mode === 'play' && engine.level && !engine.paused;
   input.enabled = playing && !busy;

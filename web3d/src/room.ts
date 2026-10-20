@@ -104,7 +104,7 @@ export class Room {
     this.buildDecor();
 
     // drifting dust motes
-    const n = 260, pos = new Float32Array(n * 3);
+    const n = matchMedia('(pointer: coarse)').matches ? 120 : 260, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 9; pos[i * 3 + 1] = Math.random() * 3; pos[i * 3 + 2] = (Math.random() - 0.5) * 9; }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.dust = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.04, map: glowSprite('#ffe0b0'), color: 0xffe0b0, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));

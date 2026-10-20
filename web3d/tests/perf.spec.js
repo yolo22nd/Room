@@ -12,7 +12,8 @@ test('bundle size budget', async () => {
   expect(physics, 'lazy physics chunk bytes').toBeLessThan(2_300_000);
 });
 
-for (const [name, save] of [['room', roomSave('room', { placed: { bed: { type: 'bed', slot: 'nw', rot: 0 }, sofa: { type: 'sofa', slot: 's', rot: 2 }, shelf: { type: 'shelf', slot: 'n', rot: 0 }, bathroom: { type: 'bathroom', slot: 'w', rot: 0 } } })], ['hell', roomSave('hell')], ['witch', roomSave('witch')]]) {
+const BUDGET = { room: 120, hell: 120, witch: 80, library: 120 };
+for (const [name, save] of [['room', roomSave('room', { placed: { bed: { type: 'bed', slot: 'nw', rot: 0 }, sofa: { type: 'sofa', slot: 's', rot: 2 }, shelf: { type: 'shelf', slot: 'n', rot: 0 }, bathroom: { type: 'bathroom', slot: 'w', rot: 0 } } })], ['hell', roomSave('hell')], ['witch', roomSave('witch')], ['library', { ...roomSave('lesson'), lesson: 'library' }]]) {
   test(`draw-call budget: ${name}`, async ({ page }) => {
     await boot(page, { save });
     await page.click('#t-continue');
@@ -29,7 +30,7 @@ for (const [name, save] of [['room', roomSave('room', { placed: { bed: { type: '
       return res;
     });
     console.log(name, JSON.stringify(per));
-    expect(per.calls, 'draw calls per frame').toBeLessThan(700);
+    expect(per.calls, 'draw calls per frame').toBeLessThan(BUDGET[name]);
     expect(per.tris, 'triangles per frame').toBeLessThan(1_500_000);
   });
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ChamberLevel } from './chamber';
-import { CATALOG, buildObject, box, cyl, materials as M } from './models';
+import { CATALOG, buildObject, box, cyl, materials as M, instancedBooks } from './models';
 import { glowSprite, tiles, brick } from './textures';
 import { RADIUS } from './player';
 import * as ui from './ui';
@@ -104,13 +104,15 @@ export class LibraryLevel extends ChamberLevel {
     for (const [x, z, ry] of [[-5.9, -2, Math.PI / 2], [-5.9, 2.5, Math.PI / 2], [5.9, -2, -Math.PI / 2], [5.9, 2.5, -Math.PI / 2], [-2.5, -5.9, 0], [2.5, -5.9, 0]]) {
       const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; this.root.add(s);
       box(3, 6.6, 0.4, shelfMat, 0, 3.3, 0, s);
+      const books = [];
       for (let i = 0; i < 7; i++) {
         box(3, 0.06, 0.45, shelfMat, 0, 0.3 + i * 0.95, 0.05, s);
         for (let k = 0; k < 12; k++) {
           const h = 0.5 + Math.random() * 0.3;
-          box(0.18, h, 0.3, new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.45, 0.3), roughness: 0.8 }), -1.35 + k * 0.23, 0.33 + i * 0.95 + h / 2, 0.08, s).castShadow = false;
+          books.push({ w: 0.18, h, d: 0.3, x: -1.35 + k * 0.23, y: 0.33 + i * 0.95 + h / 2, z: 0.08, color: new THREE.Color().setHSL(Math.random(), 0.45, 0.3) });
         }
       }
+      instancedBooks(books, s, false);
     }
     // water
     this.waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshStandardMaterial({ color: 0x2a6a9a, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2, emissive: 0x0a2030, depthWrite: false, side: THREE.DoubleSide }));
