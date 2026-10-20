@@ -1126,7 +1126,7 @@ export class RoomLevel {
   update(dt) {
     this.time += dt;
     this.updateDrops(dt);
-    this.room.update(dt, this.time);
+    this.room.update(dt, this.time, this.camera.position);
     this.fx.update(dt);
 
     if (this.anim) {

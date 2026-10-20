@@ -3,6 +3,22 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+
+// subtle film grain + lens vignette, applied after tone mapping
+const GrainShader = {
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 0.045 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform float amount; varying vec2 vUv;
+    float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
+    void main(){
+      vec4 c = texture2D(tDiffuse, vUv);
+      float v = smoothstep(0.95, 0.35, distance(vUv, vec2(0.5)));
+      c.rgb *= mix(0.72, 1.0, v);
+      c.rgb += (rnd(vUv * 731.0) - 0.5) * amount;
+      gl_FragColor = c;
+    }`,
+};
 
 import { initInput, input, consumeActions, requestLock, releaseLock, pollGamepad, setPadListener } from './input.js';
 import * as ui from './ui.js';
@@ -32,13 +48,15 @@ const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 300);
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(new THREE.Scene(), camera);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 0.82);
-composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(new OutputPass());
+const grain = new ShaderPass(GrainShader);
+composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(new OutputPass()); composer.addPass(grain);
 
 function applyQuality() {
   const high = settings.quality === 'high';
   renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 2 : 1));
   renderer.shadowMap.enabled = high;
   bloom.enabled = high;
+  grain.enabled = high;
   resize();
 }
 function resize() {
@@ -381,7 +399,7 @@ function frame() {
     titleT += dt * 0.08;
     camera.position.set(Math.sin(titleT) * 3.2, 1.9, Math.cos(titleT) * 3.2);
     camera.lookAt(0, 0.9, 0);
-    demo.room.update(dt, titleT * 12);
+    demo.room.update(dt, titleT * 12, camera.position);
     renderPass.scene = demo.scene;
   } else if (engine.level) {
     if (playing) {
@@ -399,6 +417,7 @@ function frame() {
     }
   }
   updateAudio(dt);
+  grain.uniforms.time.value = (grain.uniforms.time.value + dt) % 100;
   composer.render(dt);
 }
 

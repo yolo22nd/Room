@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { fabric, screenCanvas } from './textures.js';
 
 // Everything that can be conjured. kind: floor = 3x3 grid cell, wall = centre
@@ -44,6 +45,12 @@ export const materials = M;
 
 export function box(w, h, d, mat, x = 0, y = 0, z = 0, parent) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  if (parent) parent.add(m);
+  return m;
+}
+export function rbox(w, h, d, mat, x = 0, y = 0, z = 0, parent, r = 0.06) {
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2, h / 2, d / 2)), mat);
   m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
   if (parent) parent.add(m);
   return m;
@@ -96,8 +103,8 @@ const builders = {
   bed() {
     const g = new THREE.Group();
     box(1.9, 0.32, 2.5, M.wood, 0, 0.16, 0, g);
-    box(1.8, 0.24, 2.36, M.white, 0, 0.44, 0.02, g);
-    const blanket = box(1.86, 0.08, 1.5, new THREE.MeshStandardMaterial({ map: fabric(350), roughness: 0.95 }), 0, 0.58, 0.45, g);
+    rbox(1.8, 0.24, 2.36, M.white, 0, 0.44, 0.02, g, 0.1);
+    const blanket = rbox(1.86, 0.08, 1.5, new THREE.MeshStandardMaterial({ map: fabric(350), roughness: 0.95 }), 0, 0.58, 0.45, g);
     blanket.castShadow = true;
     const pillow = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 8), M.white);
     pillow.scale.set(1.5, 0.35, 0.7); pillow.position.set(0, 0.64, -0.85); pillow.castShadow = true; g.add(pillow);
@@ -108,11 +115,12 @@ const builders = {
   sofa() {
     const g = new THREE.Group();
     const f = new THREE.MeshStandardMaterial({ map: fabric(200), roughness: 0.95 });
-    box(2.3, 0.42, 0.95, f, 0, 0.21, 0, g);
-    box(2.3, 0.75, 0.25, f, 0, 0.6, -0.36, g);
-    box(0.22, 0.62, 0.95, f, -1.04, 0.42, 0, g);
-    box(0.22, 0.62, 0.95, f, 1.04, 0.42, 0, g);
-    for (const x of [-0.46, 0.46]) box(0.88, 0.14, 0.7, f, x, 0.48, 0.08, g);
+    rbox(2.3, 0.42, 0.95, f, 0, 0.21, 0, g, 0.08);
+    rbox(2.3, 0.75, 0.25, f, 0, 0.6, -0.36, g, 0.1);
+    rbox(0.22, 0.62, 0.95, f, -1.04, 0.42, 0, g, 0.09);
+    rbox(0.22, 0.62, 0.95, f, 1.04, 0.42, 0, g, 0.09);
+    for (const x of [-0.46, 0.46]) rbox(0.88, 0.16, 0.7, f, x, 0.48, 0.08, g, 0.07);
+    for (const x of [-0.5, 0.5]) { const p = rbox(0.6, 0.4, 0.14, new THREE.MeshStandardMaterial({ map: fabric(30), roughness: 0.95 }), x, 0.75, -0.18, g, 0.06); p.rotation.x = -0.25; }
     return g;
   },
 
@@ -121,7 +129,7 @@ const builders = {
     box(0.56, 0.06, 0.56, M.lightWood, 0, 0.48, 0, g);
     legs(g, 0.56, 0.56, 0.46, M.lightWood, 0.025, 0.05);
     box(0.56, 0.6, 0.05, M.lightWood, 0, 0.8, -0.26, g);
-    box(0.5, 0.05, 0.5, M.red, 0, 0.53, 0.01, g);
+    rbox(0.5, 0.06, 0.5, M.red, 0, 0.535, 0.01, g, 0.025);
     return g;
   },
 

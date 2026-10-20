@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { woodFloor, wallpaper, plaster, tiles, brick, portal, glowSprite } from './textures.js';
 import { box, cyl, materials as M } from './models.js';
+import { screenCanvas } from './textures.js';
 
 export const CELL = 3;
 export const HALF = 4.5;
@@ -98,12 +99,69 @@ export class Room {
       g.add(wall);
     }
 
+    this.buildDecor();
+
     // drifting dust motes
     const n = 260, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 9; pos[i * 3 + 1] = Math.random() * 3; pos[i * 3 + 2] = (Math.random() - 0.5) * 9; }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.dust = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.04, map: glowSprite('#ffe0b0'), color: 0xffe0b0, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
     g.add(this.dust);
+  }
+
+  buildDecor() {
+    const g = this.group;
+    // rug in the middle
+    const rc = screenCanvas(256, 256); const r = rc.ctx;
+    r.fillStyle = '#4a1420'; r.fillRect(0, 0, 256, 256);
+    r.strokeStyle = '#c9963c'; r.lineWidth = 6; r.strokeRect(12, 12, 232, 232);
+    r.lineWidth = 2; r.strokeRect(24, 24, 208, 208);
+    r.fillStyle = '#2a0c14'; r.fillRect(40, 40, 176, 176);
+    r.strokeStyle = '#d4a85a'; r.lineWidth = 3;
+    for (let i = 0; i < 4; i++) { r.beginPath(); r.arc(128, 128, 20 + i * 18, 0, Math.PI * 2); r.stroke(); }
+    for (let a = 0; a < 8; a++) { r.save(); r.translate(128, 128); r.rotate(a * Math.PI / 4); r.fillStyle = '#8a2a3a'; r.beginPath(); r.moveTo(0, 30); r.lineTo(10, 80); r.lineTo(0, 88); r.lineTo(-10, 80); r.fill(); r.restore(); }
+    for (let i = 0; i < 2000; i++) { r.fillStyle = `rgba(0,0,0,${Math.random() * 0.15})`; r.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
+    rc.tex.needsUpdate = true;
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.4), new THREE.MeshStandardMaterial({ map: rc.tex, roughness: 1 }));
+    rug.rotation.x = -Math.PI / 2; rug.position.y = 0.005; rug.receiveShadow = true; g.add(rug);
+
+    // two paintings: a stormy landscape, and the witch, whose eyes follow you
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8a6420, roughness: 0.35, metalness: 0.8 });
+    const paint = (draw, w, h) => {
+      const c = screenCanvas(192, Math.round(192 * h / w)); draw(c.ctx, 192, Math.round(192 * h / w)); c.tex.needsUpdate = true;
+      const grp = new THREE.Group();
+      box(w + 0.12, h + 0.12, 0.05, frameMat, 0, 0, 0, grp).castShadow = false;
+      const canvasMesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: c.tex, roughness: 0.8 }));
+      canvasMesh.position.z = 0.03; grp.add(canvasMesh);
+      return grp;
+    };
+    const land = paint((c, W, H) => {
+      const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1b2440'); sky.addColorStop(1, '#6a4a5a');
+      c.fillStyle = sky; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#20141a'; c.beginPath(); c.moveTo(0, H); c.lineTo(0, H * 0.6); c.lineTo(W * 0.3, H * 0.45); c.lineTo(W * 0.55, H * 0.62); c.lineTo(W * 0.8, H * 0.4); c.lineTo(W, H * 0.55); c.lineTo(W, H); c.fill();
+      c.fillStyle = '#f0e0a0'; c.beginPath(); c.arc(W * 0.75, H * 0.2, 10, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ff7a3c'; c.fillRect(W * 0.28, H * 0.5, 3, 4);
+    }, 1.2, 0.8);
+    const s1 = new THREE.Group(); s1.applyMatrix4(sideMatrix('n')); land.position.set(-2.9, 1.75, 0.03); s1.add(land); g.add(s1);
+    const witch = paint((c, W, H) => {
+      c.fillStyle = '#1c0c1a'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#e6cfae'; c.beginPath(); c.ellipse(W / 2, H * 0.58, W * 0.24, H * 0.24, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#120612'; c.beginPath(); c.moveTo(W / 2, H * 0.02); c.lineTo(W * 0.2, H * 0.42); c.lineTo(W * 0.8, H * 0.42); c.fill();
+      c.fillRect(W * 0.08, H * 0.4, W * 0.84, H * 0.05);
+      c.fillStyle = '#5a1a2a'; c.fillRect(W * 0.43, H * 0.72, W * 0.14, H * 0.025);
+      c.fillStyle = '#3a1a4a'; c.fillRect(0, H * 0.86, W, H * 0.14);
+    }, 0.9, 1.2);
+    const s2 = new THREE.Group(); s2.applyMatrix4(sideMatrix('s')); witch.position.set(2.9, 1.75, 0.03); s2.add(witch); g.add(s2);
+    // eyes: painted sockets with real eyeballs that track the camera
+    this.paintEyes = [];
+    const white = new THREE.MeshStandardMaterial({ color: 0xf4efe0, roughness: 0.3 });
+    const pupilMat = new THREE.MeshBasicMaterial({ color: 0x103010 });
+    for (const ex of [-0.1, 0.1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), white);
+      eye.position.set(ex, -0.02, 0.04); witch.add(eye);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), pupilMat); pupil.position.z = 0.03; eye.add(pupil);
+      this.paintEyes.push(eye);
+    }
   }
 
   setPlug(side, visible) { this.plugs[side].visible = visible; }
@@ -231,7 +289,11 @@ export class Room {
     return null;
   }
 
-  update(dt, t) {
+  update(dt, t, camPos) {
+    if (camPos && this.paintEyes) {
+      const w = new THREE.Vector3();
+      for (const e of this.paintEyes) { e.getWorldPosition(w); e.lookAt(camPos.x, camPos.y, camPos.z); }
+    }
     const p = this.dust.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
       let y = p.getY(i) + dt * 0.04; if (y > 3) y = 0;

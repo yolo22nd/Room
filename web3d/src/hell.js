@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { basalt, lava, ring, glowSprite, portal } from './textures.js';
 import { CATALOG, buildObject, makeGiantNail } from './models.js';
 import { FX } from './fx.js';
+import { TaperTube } from './tube.js';
 import { RADIUS } from './player.js';
 import * as ui from './ui.js';
 import { sfx, playAmbience } from './audio.js';
@@ -11,7 +12,7 @@ const ARENA_C = new THREE.Vector3(0, 0, 4);
 const ARENA_R = 16;
 const KRAKEN_POS = new THREE.Vector3(0, 0, -15);
 const TENTACLES = 5;
-const SEGMENTS = 14;
+const SEGMENTS = 26;
 const G = 22;
 
 function bezier(p0, p1, p2, p3, t, out) {
@@ -22,6 +23,22 @@ function bezier(p0, p1, p2, p3, t, out) {
     .addScaledVector(p2, 3 * u * t * t)
     .addScaledVector(p3, t * t * t);
   return out;
+}
+
+function krakenSkin() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, '#6a1c36'); grd.addColorStop(1, '#3a0c1e');
+  g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+  let s = 7; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 160; i++) {
+    g.fillStyle = `rgba(${150 + r() * 60},${40 + r() * 30},${60 + r() * 30},${0.25 + r() * 0.35})`;
+    g.beginPath(); g.ellipse(r() * 256, r() * 256, 2 + r() * 9, 2 + r() * 7, r() * 3, 0, Math.PI * 2); g.fill();
+  }
+  for (let i = 0; i < 1500; i++) { g.fillStyle = `rgba(0,0,0,${r() * 0.12})`; g.fillRect(r() * 256, r() * 256, 2, 2); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 4);
+  return t;
 }
 
 export class HellLevel {
@@ -110,7 +127,8 @@ export class HellLevel {
   buildKraken() {
     const k = new THREE.Group(); k.position.copy(KRAKEN_POS); this.scene.add(k);
     this.kraken = k;
-    const skin = new THREE.MeshStandardMaterial({ color: 0x5a1830, roughness: 0.5, metalness: 0.1, emissive: 0x200008 });
+    this.skinTex = krakenSkin();
+    const skin = new THREE.MeshStandardMaterial({ map: this.skinTex, color: 0xffffff, roughness: 0.45, metalness: 0.1, emissive: 0x200008 });
     this.skin = skin;
     const head = new THREE.Group(); head.position.set(0, 5, 0); k.add(head);
     this.head = head;
@@ -145,18 +163,27 @@ export class HellLevel {
     }
 
     // tentacles
+    this.tentacleSkin = new THREE.MeshStandardMaterial({ map: this.skinTex, color: 0xffffff, roughness: 0.45, metalness: 0.05, emissive: 0x200008 });
+    this.suckerGeo = new THREE.TorusGeometry(0.16, 0.06, 6, 12);
+    this.suckerMat = new THREE.MeshStandardMaterial({ color: 0xd8869a, roughness: 0.6 });
     const tipMat = new THREE.MeshStandardMaterial({ color: 0xff7040, emissive: 0xff3000, emissiveIntensity: 0 });
     for (let i = 0; i < TENTACLES; i++) {
       const ang = Math.PI * (0.18 + i * 0.16); // spread across the front
       const root = new THREE.Vector3(Math.cos(ang) * 4.5, 0.2, Math.sin(ang) * 3.5).add(KRAKEN_POS);
+      // spine points (plain Object3Ds), the last one is the glowing tip pad
       const segs = [];
-      for (let k2 = 0; k2 < SEGMENTS; k2++) {
-        const r = 1.0 * (1 - k2 / SEGMENTS) + 0.22;
-        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), k2 === SEGMENTS - 1 ? tipMat.clone() : skin);
-        m.castShadow = true; this.scene.add(m); segs.push(m);
+      for (let k2 = 0; k2 < SEGMENTS - 1; k2++) segs.push(new THREE.Object3D());
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 10), tipMat.clone());
+      pad.scale.set(1.3, 0.6, 1.3); pad.castShadow = true; this.scene.add(pad); segs.push(pad);
+      const tube = new TaperTube(SEGMENTS, 14, (t) => 1.15 * Math.pow(1 - t, 0.9) + 0.18, this.tentacleSkin);
+      this.scene.add(tube.mesh);
+      // suckers along the underside
+      const suckers = [];
+      for (let k2 = 6; k2 < SEGMENTS - 1; k2 += 2) {
+        const s = new THREE.Mesh(this.suckerGeo, this.suckerMat); this.scene.add(s); suckers.push({ m: s, k: k2 });
       }
       this.tentacles.push({
-        i, root, segs, state: 'idle', t: Math.random() * 5, timer: 0,
+        i, root, segs, tube, suckers, state: 'idle', t: Math.random() * 5, timer: 0,
         tip: new THREE.Vector3(), target: new THREE.Vector3(), from: new THREE.Vector3(),
         phase: Math.random() * 10, pinObj: null, ang,
       });
@@ -307,6 +334,15 @@ export class HellLevel {
       if (T.state === 'down' || T.state === 'pinned' || T.state === 'limp') v.y = Math.max(T.state === 'limp' ? -5 : 0.5 * (1 - t) + 0.25, v.y * (1 - t * 0.9));
       m.position.copy(v);
     });
+    T.tube.update(T.segs.map(m => m.position));
+    // suckers ride on the underside of the spine
+    for (const s of T.suckers) {
+      const a = T.segs[s.k].position, b = T.segs[s.k + 1].position;
+      const r = 1.15 * Math.pow(1 - s.k / (SEGMENTS - 1), 0.9) + 0.18;
+      s.m.position.copy(a).add(new THREE.Vector3(0, -r * 0.92, 0));
+      s.m.lookAt(b.x, b.y - r * 0.92 - 1, b.z);
+      s.m.scale.setScalar(r * 1.4);
+    }
     const tipMat = T.segs[SEGMENTS - 1].material;
     tipMat.emissiveIntensity = T.state === 'down' ? 1.5 + Math.sin(this.time * 10) * 0.8 : (T.state === 'pinned' ? 0.3 : 0);
   }
