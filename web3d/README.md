@@ -41,6 +41,22 @@ with one ember stew (+1 max heart, eaten at the dining table), a closet mirror, 
 arms slam where you stand and then rest on the stone. Drop your conjured furniture on them to pin them.
 Pin four and its head slumps forward. Then drop the Giant Nail on it.
 
+**Act 3 — The Rematch.** After escaping, the witch offers a rematch in her garden. She lands on standing
+stones to cast falling pumpkins and cauldrons. Drop furniture on her while she's grounded. In phase 2 she
+splits into mirror clones (only the real witch casts a shadow). In phase 3 her shield reflects drops back at
+you. The judgmental lemon from the fridge is her secret weakness.
+
+**Secrets.** A crooked book in the shelf (Ember Wand: faster casting), a hollow panel in the closet
+(Witch's Cloak: absorbs one hit per boss), a vault on the PC whose code is hidden in the witch's TV
+broadcast (her diary), and the lemon. An anvil (physics junk) dropped on the showcase smashes it: an
+alternate route to the H key.
+
+**Modes.** Normal, Hard (one heart, a five-pin Kraken), and a date-seeded Daily room (pre-built furniture,
+key hidden in a random cell). There's a speedrun timer with splits against your personal best.
+
+**Room editor.** Build your own escape room, hide the key in a piece of furniture, pick an exit door, add a
+title and note, test it, and share it as a link. The whole room is encoded in the URL, so no server is needed.
+
 ## Controls
 
 | Desktop | Touch | Action |
@@ -57,11 +73,18 @@ Pin four and its head slumps forward. Then drop the Giant Nail on it.
 | Space | move | stand up |
 | Esc | II | pause |
 | / or T | Pause → Command line | classic CLI: `create bed north east`, `go sw`, `locate`, `turn lamp`… |
+| 1 / 2 | Spells | in boss fights: switch spell (furniture / nail / lemon) |
+
+A gamepad works too: left stick move, right stick look, A use, RT cast, Y spells, X lamp, LB search, LT rotate,
+B stand/cancel, Start pause; the d-pad and A navigate menus.
 
 ## Features
 
-- Autosave (and a checkpoint at the gate of Hell), Continue from the title screen
-- 18 achievements, stored in the browser
+- Autosave, with checkpoints at the gate of Hell and at the start of the rematch; Continue from the title screen
+- 30 achievements, stored in the browser
+- Real physics (Rapier, loaded on first use): junk spells (crate, beach ball, anvil) that stack and tumble;
+  furniture that misses in Hell tumbles, gets blasted by slams and can roll into the lava
+- Installable PWA with offline play (production build), gamepad support
 - Procedural music and sound: ambient drones, a heartbeat in the dark, a music box, Hell war drums,
   and synthesised sound effects
 - Settings: music/sfx volume, look sensitivity, invert Y, graphics quality (shadows + bloom)
@@ -74,6 +97,10 @@ Pin four and its head slumps forward. Then drop the Giant Nail on it.
 | `src/main.js` | renderer, game loop, title/pause/settings/death/ending screens |
 | `src/game.js` | Act 1: conjuring and placement, collisions, every interaction and puzzle |
 | `src/hell.js` | Act 2: arena, Kraken 2.0, tentacle AI, pins, fireballs, nail, victory |
+| `src/witch.js` | Act 3: the witch's garden, witch AI, clones, reflection, lemon |
+| `src/physics.js` | lazy-loaded Rapier wrapper |
+| `src/share.js` | URL encoding of custom rooms |
+| `src/tube.js` | tapered tube geometry for tentacles |
 | `src/room.js` | room geometry, the 3×3 grid, walls with door gaps, annex rooms |
 | `src/models.js` | procedural furniture, keys, lantern, giant nail; the conjure catalog |
 | `src/story.js` | all narrative text |

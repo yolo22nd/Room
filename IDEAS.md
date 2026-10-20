@@ -35,38 +35,39 @@ Everything new lives in `web3d/`.
       shoe rack fall-through (`wear` also ran `take`), sit-on-floor fall-through, `put` reading one token,
       "close" opening doors, Door1 unlocking Door4, sleeping on the sofa saying "bed"
 
+### Round 2 (also built)
+- [x] **Part 3: the witch rematch**, with three phases, mirror clones, a reflecting shield and the lemon weakness
+- [x] **Real physics** (Rapier): junk spells, the anvil-smashes-showcase alternate route, tumbling debris in Hell
+- [x] **Level editor + sharing**: build a room, hide the key, pick the exit, share it as a self-contained link
+- [x] **Hard mode, daily seeded rooms, speedrun timer** with splits and personal bests
+- [x] **More Act 1 puzzles**: Ember Wand (crooked book), Witch's Cloak (hollow closet panel), PC vault + diary
+      (code hidden in the TV broadcast), the lemon; achievements for designer and minimalist runs
+- [x] **Gamepad + installable offline PWA**
+- [x] **Visual polish**: tapered tentacles with suckers, rug and paintings (the witch's eyes follow you),
+      rounded furniture, film grain
+
 ## Next ideas (not built yet)
 
 ### Quick wins
 - **GitHub Pages deploy**: a workflow that builds `web3d/` and publishes a playable link
 - **Photo mode** + "share your room" screenshot
-- **Room sharing**: encode the placed furniture in a URL so friends can visit your layout
 - Subtitles/captions for the witch's lines, colour-blind-friendly telegraph colours, a reduced-motion toggle
 
 ### Gameplay depth
 - **Free conjuring**: unlock off-grid placement and stacking (books on tables, lamps on desks) after the game
-- **Physics** (Rapier/cannon-es): conjured things topple, bounce and stack; knock the showcase over to break
-  the glass as an alternate solution
-- More puzzles per object: the bookshelf hides a lever, the closet has a false back, the chair/TV angle
-  reveals a code, the shoe rack holds the only fire-proof boots
 - **Mana and spell upgrades**: bigger conjures cost more; levitate, shrink, swap
-- **Hard mode**: one heart, Kraken phase 3, timed escape
-- **Speedrun timer + splits**, daily seeded "room challenges" (random starting furniture, random key spots)
 
-### Story — Part 3 and beyond
-- **The rematch**: a duel against the witch using everything learned (counter-conjuring, reflected drops)
+### Story — beyond Part 3
 - More rooms beyond hell: a library-world, a flooded room, a gravity-flipped room where things fall *up*
 - Branching endings: spare/stay/redecorate ending ("most people just stay in the room and redecorate")
 - Voice acting via TTS for the witch; a proper cutscene system
 
 ### Tech & platform
 - **VR mode** (WebXR): point your wand and drop furniture in room scale. A natural fit for this game
-- PWA install + offline play; gamepad support
 - Ship as a desktop app (Tauri/Electron) or wrap for Android/iOS (Capacitor)
 - Port to Godot/Unity for a Steam release with real art, physics and voice
 - Multiplayer co-op: two wizards, one room, conjure each other's solutions
 - Replace procedural models with stylised low-poly GLTF art; baked lighting for mobile
-- A level editor: let players design their own escape rooms and share them
 
 ### For the original Java version
 - Refactor the 1,500-line `Base.java` into data-driven objects, add save/load, and add unit tests for the
