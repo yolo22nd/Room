@@ -28,6 +28,7 @@ export class UpsideLevel extends ChamberLevel {
   constructor(engine, state) {
     super(engine, state, { gravity: 1, h: 3.4, fog: 0x0b0716 });
     this.chapterId = 'upside';
+    this.addCrystalBall(-3.6, 3.6);
     this.intro = 'The witch\'s voice: "Lesson one. Up is the new down. Match the runes on the ceiling."';
     this.addExit('n', 'Exit door');
     this.lockedHint = () => `The door won't budge. Match the ceiling runes (${this.runes.filter(r => r.done).length}/3).`;
@@ -92,6 +93,7 @@ export class LibraryLevel extends ChamberLevel {
       wallMat: new THREE.MeshStandardMaterial({ map: brick(), color: 0x8899aa, roughness: 0.9 }),
     });
     this.chapterId = 'library';
+    this.addCrystalBall(-1.5, 5.2);
     this.intro = '"Lesson two. Libraries flood. Save my six glowing books before the water reaches the ceiling — and remember, everything you conjure takes up space."';
     this.water = 0;
     this.rate = state.mode === 'hard' ? 0.032 : 0.024;
@@ -203,6 +205,7 @@ export class ClockworkLevel extends ChamberLevel {
   constructor(engine, state) {
     super(engine, state, { h: 3.6, fog: 0x0e1218, wallMat: new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.6, metalness: 0.3 }) });
     this.chapterId = 'clockwork';
+    this.addCrystalBall(3.6, 3.6);
     this.intro = '"Lesson three. My tower never stops turning. Unless, of course, something gets stuck in the gears."';
     this.angle = 0; this.k = 0; this.turnT = 0; this.turning = null;
     this.jammed = null;

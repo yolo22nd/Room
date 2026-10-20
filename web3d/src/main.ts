@@ -34,6 +34,16 @@ import { encodeRoom, decodeRoom, shareUrl, roomCodeFromHash } from './share';
 import { ENDINGS, ENDING_IDS, recordEnding, seenEndings, trueEndingReady } from './endings';
 import { LESSONS, LESSON_ORDER } from './lessons';
 import { ChamberLevel } from './chamber';
+import { Cutscene } from './cutscene';
+import { runDialogue } from './dialogue';
+import { setVoiceEnabled, voiceAvailable } from './voice';
+
+const CHAPTERS_KEY = 'room3d.chapters.v1';
+const chaptersDone = (): string[] => { try { return JSON.parse(localStorage.getItem(CHAPTERS_KEY) || '[]'); } catch (e) { return []; } };
+function markChapter(id) {
+  const s = new Set(chaptersDone()); s.add(id);
+  try { localStorage.setItem(CHAPTERS_KEY, JSON.stringify([...s])); } catch (e) { /* ignore */ }
+}
 
 // What carries over between parts: spells, secrets and upgrades.
 const PROFILE_KEY = 'room3d.profile.v1';
@@ -54,7 +64,7 @@ function profileState() {
 const lessonsUnlocked = () => seenEndings().some(e => ['apprentice', 'rival', 'true'].includes(e));
 const LESSONS_DONE_KEY = 'room3d.lessons.v1';
 const lessonsDone = (): string[] => { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_KEY) || '[]'); } catch (e) { return []; } };
-import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING } from './story';
+import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING, WITCH_TALK } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
   ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun, loadEditor, saveEditor,
@@ -102,6 +112,7 @@ function applyA11y() {
   document.body.classList.toggle('captions', !!settings.captions);
   document.body.style.setProperty('--ui-scale', settings.textScale || 1);
   setBindings(settings.keys);
+  setVoiceEnabled(settings.voice);
 }
 applyA11y();
 setCaptionHook((t) => ui.caption(t));
@@ -172,6 +183,17 @@ const engine: any = {
     return true;
   },
 
+  playCutscene(shots) {
+    this.cutscene = new Cutscene(camera, shots);
+    document.body.classList.add('cutscene');
+    releaseLock();
+    return this.cutscene.promise.then(() => {
+      this.cutscene = null;
+      document.body.classList.remove('cutscene');
+      if (!input.touch) requestLock();
+    });
+  },
+
   split(name) {
     const sp = this.stats.splits || (this.stats.splits = {});
     if (sp[name] !== undefined) return;
@@ -234,7 +256,16 @@ const engine: any = {
     await ui.story(HELL_ENTRY);
     this.mode = 'play';
     this.split('Hell');
-    this.setLevel(new HellLevel(this, s));
+    markChapter('room');
+    const hell = new HellLevel(this, s);
+    this.setLevel(hell);
+    hell.phase = 'intro';
+    await this.playCutscene([
+      { from: [0, 30, 30], to: [6, 16, 6], lookFrom: [0, 0, -15], lookTo: [0, 4, -15], dur: 4, text: 'Beyond the door: a burning sea.' },
+      { from: [10, 3, -2], to: [-8, 4, -3], lookFrom: [0, 5, -15], lookTo: [0, 6, -15], dur: 3.6, text: 'And something enormous, waking up.' },
+      { from: [0, 2.5, 8], to: [0, 1.62, 13], lookFrom: [0, 6, -15], lookTo: [0, 4, -15], dur: 2.4, text: 'KRAKEN 2.0' },
+    ]);
+    hell.phase = 'fight';
   },
 
   async ending() {
@@ -245,6 +276,7 @@ const engine: any = {
     if (this.stats.time < 15 * 60) unlock('speed');
     if (this.roomState && this.roomState.mode === 'hard') unlock('hardmode');
     if (this.roomState && this.roomState.mode === 'daily') unlock('daily');
+    markChapter('hell');
     await ui.story(ENDING);
     ui.dialog({
       title: '"Rematch?"',
@@ -286,10 +318,21 @@ const engine: any = {
     const s = this.roomState;
     s.hearts = s.maxHearts;
     saveGame({ version: 1, act: 'witch', room: s, stats: this.stats, savedAt: Date.now() });
-    await ui.story(WITCH_INTRO);
+    await ui.story(WITCH_INTRO.slice(0, 1));
     this.mode = 'play';
     ui.showHUD(true);
-    this.setLevel(new WitchLevel(this, s));
+    const wl = new WitchLevel(this, s);
+    this.setLevel(wl);
+    wl.phase = 'intro';
+    await this.playCutscene([
+      { from: [-14, 9, 14], to: [14, 9, 14], lookFrom: [0, 1, 0], lookTo: [0, 1, 0], dur: 5, text: 'Dusk. Fireflies. A ring of standing stones.', who: 'narrator' },
+      { from: [0, 5, -2], to: [0, 2.6, 4], lookFrom: [0, 4, -8], lookTo: [0, 3, -8], dur: 3, text: '"Rematch, then. I did ask."', who: 'witch' },
+    ]);
+    const effects = await runDialogue(WITCH_TALK, 'start', { flags: s.flags });
+    wl.applyTalk(effects);
+    wl.phase = 'fight';
+    wl.refreshHUD();
+    if (!input.touch) requestLock();
   },
 
   async finale() {
@@ -297,6 +340,7 @@ const engine: any = {
     releaseLock();
     ui.flash('#ffffff', 0.8, 1500);
     this.split('Rematch');
+    markChapter('witch');
     clearSave();
     await ui.story([WITCH_ENDING[0]]);
     const ready = trueEndingReady(this.roomState);
@@ -420,6 +464,7 @@ function showTitle() {
         ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
         ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
         <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
+        <button class="btn" id="t-campaign">📖 Campaign (${chaptersDone().length + lessonsDone().length}/6 chapters)</button>
         ${lessonsUnlocked() ? `<button class="btn" id="t-lessons">📜 Part 4: The Three Lessons (${lessonsDone().length}/3)</button>` : ''}
         <button class="btn" id="t-editor">🛠️ Room editor</button>
         <button class="btn" id="t-help">How to play</button>
@@ -434,6 +479,7 @@ function showTitle() {
   on('t-new', () => { if (cont) ui.dialog({ title: 'Start over?', html: '<p>Your saved progress will be overwritten.</p>', buttons: [{ label: 'Yes, new game', cls: 'primary', onClick: chooseMode }, { label: 'Cancel' }] }); else chooseMode(); });
   on('t-help', () => showHelp());
   on('t-editor', () => openEditor());
+  on('t-campaign', () => showCampaign());
   on('t-lessons', () => ui.dialog({
     title: 'Part 4: The Three Lessons',
     buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
@@ -634,6 +680,27 @@ function showEnding(kind = 'escape') {
   document.getElementById('e-title').onclick = () => showTitle();
 }
 
+function showCampaign() {
+  const done = chaptersDone(), ld = lessonsDone();
+  const fresh = () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; };
+  const chapters = [
+    { n: '1', id: 'room', title: 'The Room', sub: 'A dark room. A lamp. A very smug PC.', open: true, done: done.includes('room'), go: () => chooseMode() },
+    { n: '2', id: 'hell', title: 'Go To Hell', sub: 'Kraken 2.0 and the giant nail.', open: done.includes('room'), done: done.includes('hell'), go: () => { fresh(); engine.roomState = profileState(); ui.hideScreen(); engine.enterHell(); } },
+    { n: '3', id: 'witch', title: 'The Rematch', sub: 'The witch\'s garden at dusk.', open: done.includes('hell'), done: done.includes('witch'), go: () => { fresh(); engine.roomState = profileState(); ui.hideScreen(); ui.showHUD(true); engine.startWitch(); } },
+    ...LESSON_ORDER.map((id, i) => ({ n: '4.' + (i + 1), id, title: LESSONS[id].title.split(' — ')[1], sub: ['Things fall up.', 'The water is rising.', 'The tower never stops turning.'][i], open: lessonsUnlocked() && (i === 0 || ld.includes(LESSON_ORDER[i - 1])), done: ld.includes(id), go: () => { fresh(); engine.startLesson(id); } })),
+  ];
+  const box = ui.dialog({
+    title: '📖 Campaign',
+    html: `<p class="muted">Replay any chapter you've reached. Your spells and secrets come with you.</p><div class="chapters">${chapters.map((c, i) => `<button class="chapter ${c.open ? '' : 'locked'}" data-i="${i}" ${c.open ? '' : 'disabled'}><span class="num">${c.n}</span><span>${c.open ? c.title : '???'}<small>${c.open ? c.sub : 'Locked'}</small></span>${c.done ? '<span class="st">✓ done</span>' : ''}</button>`).join('')}</div>`,
+    buttons: [{ label: 'Back' }],
+  });
+  box.querySelectorAll('.chapter').forEach((b: any) => b.addEventListener('click', () => {
+    const c = chapters[+b.dataset.i];
+    if (!c.open) return;
+    initAudio(); sfx.click(); ui.closeDialog(true); c.go();
+  }));
+}
+
 function showEndings() {
   const seen = seenEndings();
   ui.dialog({
@@ -676,6 +743,7 @@ function showSettings() {
       <div class="setting"><span>Music</span><input type="range" id="s-music" min="0" max="1" step="0.05" value="${settings.music}"></div>
       <div class="setting"><span>Sound effects</span><input type="range" id="s-sfx" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
       <div class="setting"><span>Sound captions</span>${chk('s-cap', settings.captions)}</div>
+      <div class="setting"><span>Read story aloud<br><small class="muted">${voiceAvailable() ? 'uses your browser\'s voices' : 'not supported in this browser'}</small></span>${chk('s-voice', settings.voice)}</div>
       <div class="settings-section">Controls</div>
       <div class="setting"><span>Look sensitivity</span><input type="range" id="s-sens" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
       <div class="setting"><span>Invert look Y</span>${chk('s-inv', settings.invertY)}</div>
@@ -697,6 +765,7 @@ function showSettings() {
     settings.showTimer = box.querySelector<any>('#s-timer').checked;
     settings.quality = box.querySelector<any>('#s-q').value;
     settings.captions = box.querySelector<any>('#s-cap').checked;
+    settings.voice = box.querySelector<any>('#s-voice').checked;
     settings.reducedMotion = box.querySelector<any>('#s-motion').checked;
     settings.palette = box.querySelector<any>('#s-pal').value;
     settings.textScale = +box.querySelector<any>('#s-text').value;
@@ -791,6 +860,15 @@ function frame() {
 
   pollGamepad(dt);
   const actions = consumeActions();
+  if (engine.cutscene) {
+    for (const a of actions) if (['pause', 'enter', 'use', 'cast', 'cancel', 'stand'].includes(a)) engine.cutscene.skip();
+    input.lookDX = input.lookDY = 0;
+    if (engine.level) engine.level.update(dt);
+    engine.cutscene && engine.cutscene.update(dt);
+    updateAudio(dt);
+    composer.render(dt);
+    return;
+  }
   if (engine.photo) {
     for (const a of actions) if (a === 'pause' || a === 'photo' || a === 'cancel') exitPhoto();
     input.enabled = true;

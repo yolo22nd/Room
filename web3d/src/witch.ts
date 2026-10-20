@@ -229,7 +229,7 @@ export class WitchLevel extends BossLevel {
       case 'fly': {
         w.ang += dt * (stage === 3 ? 0.7 : 0.45);
         w.pos.set(Math.cos(w.ang) * 9, 4 + Math.sin(this.time * 1.7) * 0.6, Math.sin(w.ang) * 9);
-        if (w.t > (stage === 3 ? 2.2 : 3.4)) this.descend();
+        if (w.t > (stage === 3 ? 2.2 : 3.4) * (this.slow || 1)) this.descend();
         break;
       }
       case 'descend': {
@@ -317,13 +317,19 @@ export class WitchLevel extends BossLevel {
     this.clones = [];
   }
 
+  applyTalk(effects) {
+    if (effects.includes('easy')) this.slow = 1.25;
+    if (effects.includes('rattled')) { this.hp = Math.max(1, this.hp - 1); ui.log('She\'s rattled: one hit already counts against her.', 'good'); }
+  }
+
   startCast() {
     const stage = this.stage();
     sfx.whisper();
     const pp = () => new THREE.Vector3(this.player.pos.x, 0, this.player.pos.z);
-    if (stage === 1) this.queueAttack(pp(), 0.9);
-    else if (stage === 2) { this.queueAttack(pp(), 0.8); this.queueAttack(null, 1.6); }
-    else { this.queueAttack(null, 0.5); this.queueAttack(null, 1.1); this.queueAttack(null, 1.7); }
+    const k = this.slow || 1;
+    if (stage === 1) this.queueAttack(pp(), 0.9 * k);
+    else if (stage === 2) { this.queueAttack(pp(), 0.8 * k); this.queueAttack(null, 1.6 * k); }
+    else { this.queueAttack(null, 0.5 * k); this.queueAttack(null, 1.1 * k); this.queueAttack(null, 1.7 * k); }
   }
 
   // target null = wherever the player is when it fires

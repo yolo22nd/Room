@@ -571,6 +571,9 @@ export class HellLevel extends BossLevel {
   win() {
     this.phase = 'dying';
     this.dieT = 0;
+    if (this.engine.playCutscene) this.engine.playCutscene([
+      { from: [10, 6, -4], to: [-10, 5, -4], lookFrom: [0, 4, -12], lookTo: [0, 0, -12], dur: 4.2, text: 'The giant nail drives home.' },
+    ]);
     ui.flash('#ffffff', 0.9, 900);
     sfx.roar();
     ui.log('The giant nail drives home. KRAKEN 2.0 shudders...', 'good');

@@ -229,6 +229,27 @@ button.btn .k { font-family: var(--mono); color: var(--muted); font-size: 12px; 
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; }
 .setting input[type=range] { width: 50%; accent-color: var(--accent); }
 
+/* ---------- Cutscenes ---------- */
+#letterbox .lb { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .6s ease; z-index: 18; pointer-events: none; }
+#letterbox .top { top: 0; } #letterbox .bottom { bottom: 0; }
+#letterbox.on .lb { height: 11vh; }
+#cutscene-cap {
+  position: absolute; left: 50%; bottom: 13vh; transform: translateX(-50%); z-index: 19; pointer-events: none;
+  font: 500 clamp(16px, 2.4vw, 22px) Georgia, serif; color: #f4e8ff; text-align: center; max-width: 80vw;
+  text-shadow: 0 2px 8px #000; opacity: 0; transition: opacity .4s;
+}
+#cutscene-cap.show { opacity: 1; }
+body.cutscene #hud, body.cutscene #touch { display: none !important; }
+
+/* ---------- Campaign map ---------- */
+.chapters { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
+.chapter { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #1b1427; border: 1px solid #3d2f55; cursor: pointer; font: inherit; color: var(--text); width: 100%; text-align: left; }
+.chapter:hover, .chapter:focus-visible { border-color: var(--accent); outline: none; }
+.chapter.locked { opacity: .4; cursor: not-allowed; }
+.chapter .num { font: 700 22px Georgia, serif; color: var(--ember); width: 36px; text-align: center; }
+.chapter small { display: block; color: var(--muted); }
+.chapter .st { margin-left: auto; font: 12px var(--mono); color: var(--good); }
+
 /* ---------- Photo mode ---------- */
 #hud.photo > *:not(#vignette) { display: none !important; }
 #photo {

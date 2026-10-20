@@ -7,6 +7,8 @@ import * as ui from './ui';
 import { sfx, playAmbience } from './audio';
 import { manaCost, knows, castShrink, castBlink, SPELLS } from './spells';
 import { COL } from './a11y';
+import { runDialogue } from './dialogue';
+import { LESSON_HINTS } from './story';
 
 /**
  * Base for the Part 4 lesson chambers: a rectangular room with a cell grid,
@@ -69,6 +71,29 @@ export class ChamberLevel {
     this.root.add(this.light);
     this.aimRing = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: ring(), color: COL.mine, transparent: true, depthWrite: false }));
     this.aimRing.visible = false; s.add(this.aimRing);
+  }
+
+  /** A crystal ball on a pedestal that gives escalating hints. */
+  addCrystalBall(x, z) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); this.root.add(g);
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1, 12), new THREE.MeshStandardMaterial({ color: 0x3a2a40, roughness: 0.6 }));
+    ped.position.y = 0.5; g.add(ped);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 16), new THREE.MeshStandardMaterial({ color: 0xb58cff, emissive: 0x6a3fc4, emissiveIntensity: 1.2, transparent: true, opacity: 0.85 }));
+    ball.position.y = 1.2; g.add(ball);
+    this.ball = ball;
+    const use = { label: 'Crystal ball (hints)', fn: () => this.askHint() };
+    ped.userData.use = use; ball.userData.use = use; this.usables.push(ped, ball);
+  }
+  askHint() {
+    const h = LESSON_HINTS[this.chapterId] || [];
+    runDialogue({
+      start: { who: 'witch', name: 'Crystal ball', text: '"Stuck already, apprentice?"', choices: [
+        { label: 'A small hint', next: 'h0' }, { label: 'A bigger hint', next: 'h1' }, { label: 'Just tell me', next: 'h2' }, { label: 'No thanks' },
+      ] },
+      h0: { who: 'witch', name: 'Crystal ball', text: h[0], choices: [{ label: 'Thanks' }] },
+      h1: { who: 'witch', name: 'Crystal ball', text: h[1], choices: [{ label: 'Thanks' }] },
+      h2: { who: 'witch', name: 'Crystal ball', text: h[2] + ' "...and that one cost you your dignity."', choices: [{ label: 'Worth it' }] },
+    }, 'start');
   }
 
   /** An exit door on a wall side; locked until unlockExit(). */
@@ -297,6 +322,7 @@ export class ChamberLevel {
     this.fx.update(dt);
     this.updateDrops(dt);
     if (this.updateChamber) this.updateChamber(dt);
+    if (this.ball) this.ball.position.y = 1.2 + Math.sin(this.time * 2) * 0.04;
     if (this.placing) {
       const p = this.aimPoint();
       const cell = p && this.placing.type !== 'blink' ? this.cellAt(p.x, p.z) : null;

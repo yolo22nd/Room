@@ -123,6 +123,37 @@ export const WITCH_INTRO = [
   '<em>PART 3 — THE REMATCH</em>',
 ];
 
+export const WITCH_TALK = {
+  start: {
+    who: 'witch', name: 'The Witch of Ember Hollow',
+    text: '"Before I flatten you with a pumpkin — any last words, newbie?"',
+    choices: [
+      { label: '"Please go easy on me."', next: 'easy', effect: 'easy' },
+      { label: '"I\'ve been practising."', next: 'practice' },
+      { label: '"Your diary says you hate lemons."', next: 'lemon', effect: 'rattled', if: (c) => c.flags && c.flags.diary },
+      { label: '"Why did you really banish me?"', next: 'why', if: (c) => c.flags && c.flags.books && c.flags.books.length >= 6 },
+    ],
+  },
+  easy: { who: 'witch', name: 'The Witch', text: '"Ha! Fine. I\'ll cast a little slower. Don\'t tell anyone I\'m soft."', choices: [{ label: 'Fight!' }] },
+  practice: { who: 'witch', name: 'The Witch', text: '"Oh? Show me, then. I do love a show."', choices: [{ label: 'Fight!' }] },
+  lemon: {
+    who: 'witch', name: 'The Witch', text: '"...WHO told you. Nobody reads my diary. NOBODY." (She looks genuinely rattled.)',
+    choices: [{ label: '"Everyone, apparently."', next: 'lemon2' }],
+  },
+  lemon2: { who: 'witch', name: 'The Witch', text: '"I am going to rearrange your FURNITURE." (Her shield flickers. She\'s off her game.)', choices: [{ label: 'Fight!' }] },
+  why: {
+    who: 'witch', name: 'The Witch', text: '"...Because the dragon didn\'t give me a choice either. Someone has to learn the hard way so the next one doesn\'t have to."',
+    choices: [{ label: '"And am I learning?"', next: 'why2' }],
+  },
+  why2: { who: 'witch', name: 'The Witch', text: '"Ask me again after I win."', choices: [{ label: 'Fight!' }] },
+};
+
+export const LESSON_HINTS = {
+  upside: ['"Look UP. The ceiling shows what it wants, and where."', '"Open the spellbook and aim at the glowing rune itself — not the floor."', '"Each rune shows one piece of furniture. Conjure exactly that, aimed at that rune. Three runes, three pieces."'],
+  library: ['"Low books first. The water won\'t wait, and it will lift you away from them."', '"Every piece of furniture you conjure makes the water rise. Useful — if the low books are already safe."', '"Grab the two low books by the entrance at once. Then conjure to raise the water and float up to the high ones."'],
+  clockwork: ['"Watch the door. Count the turns."', '"Anything that falls into the gear pit in the middle jams the tower."', '"Wait until the door faces the bridge, then conjure into the middle cell. Then open the door and walk."'],
+};
+
 export const WITCH_TAUNTS = [
   '"Is that a sofa? You brought a SOFA to a duel?"',
   '"I taught half the wizards in this world. You\'re the worst one. I like that."',

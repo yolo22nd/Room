@@ -1,3 +1,4 @@
+import { speak, speakerOf, stopVoice } from './voice';
 // DOM overlay: HUD, log, dialogs, screens, toasts.
 
 const $ = (id) => document.getElementById(id);
@@ -178,6 +179,7 @@ export function story(pages, { clear = false } = {}) {
     const scr = els.screen;
     scr.classList.toggle('clear', clear);
     const show = () => {
+      speak(pages[i], speakerOf(pages[i]));
       scr.innerHTML = `<div class="story">${pages[i]}<span class="hint">${matchMedia('(pointer: coarse)').matches ? 'tap' : 'click / press enter'} to continue</span></div>`;
     };
     const next = (e) => {
@@ -186,6 +188,7 @@ export function story(pages, { clear = false } = {}) {
       i++;
       if (i >= pages.length) {
         scr.removeEventListener('pointerup', next); removeEventListener('keydown', next);
+        stopVoice();
         scr.classList.add('hidden'); scr.classList.remove('clear'); resolve();
       } else show();
     };
