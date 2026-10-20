@@ -35,6 +35,8 @@ import { ENDINGS, ENDING_IDS, recordEnding, seenEndings, trueEndingReady } from 
 import { LESSONS, LESSON_ORDER } from './lessons';
 import { ChamberLevel } from './chamber';
 import { Cutscene } from './cutscene';
+import { RogueRoom, UPGRADES, newRun } from './roguelike';
+import { seededRandom } from './state';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 
@@ -173,6 +175,7 @@ const engine: any = {
     const s = this.roomState;
     if (!s) return true;
     if (s.mode === 'editor') return true;
+    cost = Math.round(cost * (s.costMul || 1));
     if (s.mana === undefined) { s.mana = s.maxMana = 100; }
     if (s.mana < cost) {
       sfx.locked(); ui.manaEmpty();
@@ -181,6 +184,65 @@ const engine: any = {
     }
     s.mana -= cost;
     return true;
+  },
+
+  // ------------------------------------------------------------ endless mode
+  startRun(daily = false) {
+    initAudio();
+    ui.closeDialog(true); ui.hideScreen();
+    this.run = newRun(daily, daily ? 'daily-' + todaySeed() : null);
+    this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+    clearSave();
+    this.nextRunRoom();
+  },
+
+  nextRunRoom() {
+    const r = this.run;
+    const st: any = freshRoomState('rogue');
+    Object.assign(st, { hearts: r.hearts, maxHearts: r.maxHearts, maxMana: r.maxMana, mana: r.maxMana, regen: r.regen, costMul: r.costMul, lamp: 'hand', lampOn: true, shoes: 'shoes' });
+    this.roomState = st;
+    this.mode = 'play';
+    ui.showHUD(true);
+    const room = new RogueRoom(this, st, r);
+    this.setLevel(room);
+    ui.toast(`🏚️ Room ${r.depth + 1}`, room.intro);
+  },
+
+  runRoomCleared() {
+    const r = this.run;
+    r.hearts = this.roomState.hearts;
+    r.depth++;
+    sfx.win();
+    if (r.depth === 5) unlock('rogue5');
+    if (r.depth === 10) unlock('rogue10');
+    releaseLock();
+    const rnd = seededRandom(r.seed + ':up:' + r.depth);
+    const offer = [...UPGRADES].sort(() => rnd() - 0.5).slice(0, 3);
+    ui.dialog({
+      title: `Room ${r.depth} cleared!`,
+      html: `<p>Choose one upgrade for the rest of the run. (❤️ ${r.hearts}/${r.maxHearts})</p>`,
+      dismissable: false,
+      buttons: offer.map(u => ({ label: `${u.icon} <b>${u.name}</b> — ${u.desc}`, onClick: () => { u.apply(r); r.upgrades.push(u.id); this.nextRunRoom(); if (!input.touch) requestLock(); } })),
+    });
+  },
+
+  runOver(why) {
+    const r = this.run;
+    this.run = null;
+    this.mode = 'title';
+    releaseLock(); setHeartbeat(0);
+    ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null);
+    const entry = { depth: r.depth, time: Math.round(this.stats.time), daily: r.daily ? todaySeed() : null, at: Date.now() };
+    const board = loadRuns(); board.push(entry); board.sort((a, b) => b.depth - a.depth || a.time - b.time);
+    saveRuns(board.slice(0, 20));
+    const rank = board.indexOf(entry) + 1;
+    ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Run over</h1>
+      <div class="sub">${ui.escapeHtml(why || '')}</div>
+      <div class="stats">Rooms cleared ${r.depth}<br>Time ........ ${ui.fmtTime(this.stats.time)}<br>Upgrades .... ${r.upgrades.map(id => UPGRADES.find(u => u.id === id).icon).join(' ') || '—'}<br>Rank ........ #${rank}${r.daily ? ' (daily)' : ''}</div>
+      ${leaderboardHtml()}
+      <div class="actions" style="margin-top:18px"><button class="btn primary" id="r-again">New run</button><button class="btn" id="r-title">Back to title</button></div></div>`);
+    document.getElementById('r-again').onclick = () => { sfx.click(); this.startRun(false); };
+    document.getElementById('r-title').onclick = () => { sfx.click(); showTitle(); };
   },
 
   playCutscene(shots) {
@@ -222,6 +284,7 @@ const engine: any = {
   },
 
   die(why) {
+    if (this.run) { this.runOver(why); return; }
     this.mode = 'dead';
     this.stats.deaths++;
     setHeartbeat(0);
@@ -447,6 +510,7 @@ function buildDemo() {
 }
 
 function showTitle() {
+  engine.run = null;
   engine.mode = 'title'; engine.paused = false;
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
   setHeartbeat(0);
@@ -464,6 +528,7 @@ function showTitle() {
         ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
         ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
         <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
+        <button class="btn" id="t-endless">♾️ Endless rooms</button>
         <button class="btn" id="t-campaign">📖 Campaign (${chaptersDone().length + lessonsDone().length}/6 chapters)</button>
         ${lessonsUnlocked() ? `<button class="btn" id="t-lessons">📜 Part 4: The Three Lessons (${lessonsDone().length}/3)</button>` : ''}
         <button class="btn" id="t-editor">🛠️ Room editor</button>
@@ -480,6 +545,7 @@ function showTitle() {
   on('t-help', () => showHelp());
   on('t-editor', () => openEditor());
   on('t-campaign', () => showCampaign());
+  on('t-endless', () => showEndless());
   on('t-lessons', () => ui.dialog({
     title: 'Part 4: The Three Lessons',
     buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
@@ -678,6 +744,27 @@ function showEnding(kind = 'escape') {
   document.getElementById('e-end').onclick = () => showEndings();
   const el = document.getElementById('e-lessons'); if (el) el.onclick = () => { sfx.click(); engine.startLesson('upside'); };
   document.getElementById('e-title').onclick = () => showTitle();
+}
+
+const RUNS_KEY = 'room3d.runs.v1';
+function loadRuns(): any[] { try { return JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); } catch (e) { return []; } }
+function saveRuns(b) { try { localStorage.setItem(RUNS_KEY, JSON.stringify(b)); } catch (e) { /* ignore */ } }
+function leaderboardHtml() {
+  const b = loadRuns().slice(0, 8);
+  if (!b.length) return '';
+  return `<table class="splits">${b.map((e, i) => `<tr><td>#${i + 1} ${e.daily ? '📅 ' + e.daily : '♾️'}</td><td>${e.depth} rooms</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
+}
+function showEndless() {
+  const today = loadRuns().filter(e => e.daily === todaySeed()).sort((a, b) => b.depth - a.depth)[0];
+  ui.dialog({
+    title: '♾️ Endless rooms',
+    html: `<p>Room after room, each one built from scratch: runes, upside-down runes, key hunts and pressure plates. Pick an upgrade after every room. One life.</p>${leaderboardHtml()}`,
+    buttons: [
+      { label: '▶ New run', cls: 'primary', onClick: () => engine.startRun(false) },
+      { label: `📅 Daily run ${todaySeed()}${today ? ` · best ${today.depth} rooms` : ''}`, onClick: () => engine.startRun(true) },
+      { label: 'Back' },
+    ],
+  });
 }
 
 function showCampaign() {
@@ -900,16 +987,16 @@ function frame() {
     if (playing) {
       engine.stats.time += dt;
       const st = engine.roomState;
-      const timed = st && ['hard', 'daily', 'custom'].includes(st.mode);
+      const timed = st && ['hard', 'daily', 'custom', 'rogue'].includes(st.mode);
       if (st && st.mode !== 'editor' && (settings.showTimer || timed)) {
         const m = engine.splitMsg && engine.splitMsg.until > engine.stats.time ? engine.splitMsg : null;
-        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : '';
+        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : st.mode === 'rogue' ? `room ${engine.run.depth + 1}${engine.run.daily ? ' · daily' : ''}` : '';
         ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
       if (st) {
         if (!st.maxMana) st.maxMana = 100;
         if (st.mana === undefined || Number.isNaN(st.mana)) st.mana = st.maxMana;
-        const rate = (engine.level instanceof RoomLevel ? 10 : 16) * (st.mode === 'hard' ? 0.7 : 1);
+        const rate = (engine.level instanceof RoomLevel ? 10 : 16) * (st.mode === 'hard' ? 0.7 : 1) * (st.regen || 1);
         st.mana = st.mode === 'editor' ? st.maxMana : Math.min(st.maxMana, st.mana + rate * dt);
         ui.setMana(st.mode === 'editor' ? null : st.mana, st.maxMana);
       }
