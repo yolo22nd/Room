@@ -78,6 +78,7 @@ export const ACHIEVEMENTS = [
   { id: 'xyzzy', icon: '🐚', name: 'Old Magic Word', desc: 'Say a magic word from an older adventure at the command line.' },
   { id: 'rush', icon: '⚔️', name: 'Encore', desc: 'Clear the boss rush.' },
   { id: 'rushfast', icon: '⏱️', name: 'No Time for Monologues', desc: 'Clear the boss rush in under three minutes.' },
+  { id: 'ngplus', icon: '✨', name: 'Cursed Boomerang', desc: 'Finish New Game+.' },
   { id: 'coop', icon: '👥', name: 'Better Together', desc: 'Escape the twin room in co-op.' },
   { id: 'portrait', icon: '🖼️', name: 'Her Eyes Follow You', desc: 'Stare at the witch\'s portrait in the dark.' },
   { id: 'rpsflawless', icon: '🎯', name: 'Smug No More', desc: 'Beat the PC 3–0.' },

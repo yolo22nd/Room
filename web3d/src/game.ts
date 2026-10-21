@@ -59,6 +59,11 @@ export class RoomLevel {
     this.lampLight.shadow.bias = -0.004;
     this.lampLight.position.set(0, 0.15, 0);
     this.lantern.add(this.lampLight);
+    // New Game+: a blue flame, so you know
+    if (state.mode === 'ngplus') {
+      this.lampLight.color.set(0x8ab8ff);
+      this.lantern.traverse((o: any) => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex()) o.material = o.material.clone(), o.material.emissive.set(0x4a8aff); });
+    }
     this.lantern.visible = false;
 
     // shimmer that betrays the invisible key, only visible in the dark

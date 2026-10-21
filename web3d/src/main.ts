@@ -71,7 +71,7 @@ function profileState() {
 const lessonsUnlocked = () => seenEndings().some(e => ['apprentice', 'rival', 'true'].includes(e));
 const LESSONS_DONE_KEY = 'room3d.lessons.v1';
 const lessonsDone = (): string[] => { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_KEY) || '[]'); } catch (e) { return []; } };
-import { INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING, WITCH_TALK } from './story';
+import { INTRO, NGPLUS_INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING, WITCH_TALK } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
   ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun, loadEditor, saveEditor,
@@ -525,7 +525,7 @@ const engine: any = {
     wl.phase = 'intro';
     await this.playCutscene([
       { from: [-14, 9, 14], to: [14, 9, 14], lookFrom: [0, 1, 0], lookTo: [0, 1, 0], dur: 5, text: 'Dusk. Fireflies. A ring of standing stones.', who: 'narrator' },
-      { from: [0, 5, -2], to: [0, 2.6, 4], lookFrom: [0, 4, -8], lookTo: [0, 3, -8], dur: 3, text: '"Rematch, then. I did ask."', who: 'witch' },
+      { from: [0, 5, -2], to: [0, 2.6, 4], lookFrom: [0, 4, -8], lookTo: [0, 3, -8], dur: 3, text: s.mode === 'ngplus' ? '"YOU again. You\'re like a cursed boomerang."' : '"Rematch, then. I did ask."', who: 'witch' },
     ]);
     const effects = await runDialogue(WITCH_TALK, 'start', { flags: s.flags });
     wl.applyTalk(effects);
@@ -605,6 +605,7 @@ const engine: any = {
   },
 
   async endWith(id) {
+    if (this.roomState && this.roomState.mode === 'ngplus') unlock('ngplus');
     this.mode = 'transition';
     releaseLock();
     clearSave();
@@ -715,11 +716,13 @@ function chooseMode() {
   const fmtBest = (b) => (b ? ` · best ${ui.fmtTime(b.total)}` : '');
   ui.dialog({
     title: 'New game',
-    html: '<p class="muted">Hard mode: one heart, a faster Kraken that needs five pins. Daily room: the same seeded room for everyone today — pre-built furniture and a key hidden somewhere new.</p>',
+    html: '<p class="muted">Hard mode: one heart, a faster Kraken that needs five pins. Daily room: the same seeded room for everyone today — pre-built furniture and a key hidden somewhere new. New Game+: all spells, the key moved, and both bosses on hard.</p>',
     buttons: [
       { label: `Normal${fmtBest(bestFor('normal'))}`, cls: 'primary', onClick: () => newGame('normal') },
       { label: `Hard — one heart${fmtBest(bestFor('hard'))}`, onClick: () => newGame('hard') },
       { label: `Daily room ${seed}${fmtBest(bestFor('daily', seed))}`, onClick: () => newGame('daily', seed) },
+      seenEndings().length ? { label: `✨ New Game+ — all spells, angrier bosses${fmtBest(bestFor('ngplus'))}`, onClick: () => newGame('ngplus') }
+        : { label: '🔒 New Game+ (see any ending first)', disabled: true },
       { label: 'Cancel' },
     ],
   });
@@ -732,9 +735,11 @@ async function newGame(mode = 'normal', seed = null) {
   engine.mode = 'transition';
   engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
   playAmbience('dark');
-  await ui.story(INTRO);
-  startRoom(freshRoomState(mode, seed));
-  if (mode !== 'normal') ui.log(mode === 'hard' ? 'HARD MODE: one heart. Don\'t look at your feet.' : `DAILY ROOM ${seed}: someone has already decorated...`, 'warn');
+  await ui.story(mode === 'ngplus' ? NGPLUS_INTRO : INTRO);
+  const st = freshRoomState(mode, seed);
+  if (mode === 'ngplus') { st.flags.wand = true; st.flags.spells = { levitate: true, shrink: true, blink: true }; }
+  startRoom(st);
+  if (mode !== 'normal') ui.log(mode === 'hard' ? 'HARD MODE: one heart. Don\'t look at your feet.' : mode === 'ngplus' ? 'NEW GAME+: the Ember Wand is back in your hand, and you remember Levitate, Shrink and Blink.' : `DAILY ROOM ${seed}: someone has already decorated...`, 'warn');
   ui.log('Total darkness. You can\'t see a thing, and you are far too scared to move.', 'lore');
   ui.log(`Open your spellbook (${input.touch ? 'Spells button' : 'Q'}) and conjure something.`);
 }
@@ -1231,10 +1236,10 @@ function frame() {
     if (playing) {
       engine.stats.time += dt;
       const st = engine.roomState;
-      const timed = st && ['hard', 'daily', 'custom', 'rogue', 'rush'].includes(st.mode);
+      const timed = st && ['hard', 'daily', 'custom', 'rogue', 'rush', 'ngplus'].includes(st.mode);
       if (st && st.mode !== 'editor' && (settings.showTimer || timed)) {
         const m = engine.splitMsg && engine.splitMsg.until > engine.stats.time ? engine.splitMsg : null;
-        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : st.mode === 'rogue' ? `room ${engine.run.depth + 1}${engine.run.daily ? ' · daily' : ''}` : st.mode === 'rush' ? 'boss rush' : '';
+        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : st.mode === 'rogue' ? `room ${engine.run.depth + 1}${engine.run.daily ? ' · daily' : ''}` : st.mode === 'rush' ? 'boss rush' : st.mode === 'ngplus' ? 'NG+' : '';
         ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
       if (st) {

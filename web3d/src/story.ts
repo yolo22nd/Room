@@ -116,6 +116,13 @@ export const ENDING = [
   'She smiles. "Rematch?"\n\nTO BE CONTINUED...',
 ];
 
+export const NGPLUS_INTRO = [
+  'You beat the witch. You went home.\nYou had a bath. You ate soup.\nThen you got <em>BORED</em>.',
+  'So you walked straight back to her tower\nand asked for a rematch of the rematch.',
+  '"Oh, for — FINE," she said,\nand banished you to the room again.\nThis time she <em>moved things around</em> and made the monsters angrier.',
+  'Good news: you remember every spell you learned.\nBad news: so does everything down there.\n\n<em>GO  TO  HELL+</em>',
+];
+
 export const WITCH_INTRO = [
   'You step through the white door onto cool grass. Dusk. Fireflies. A ring of standing stones.',
   'The witch drifts down on her broom and lands in front of you.\n"Rematch, then. I did ask."',

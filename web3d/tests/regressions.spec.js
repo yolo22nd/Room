@@ -69,3 +69,19 @@ test('photo mode keeps the held lamp lit; endless hides the lamp button; runs sh
   await expect(page.locator('#screen .stats')).toContainText('0:12.3');
   await expect(page.locator('#screen tr.mine')).toContainText('0:12.3');
 });
+
+test('new game+: locked until an ending is seen; starts with the wand, all spells and hard bosses', async ({ page }) => {
+  await boot(page);
+  await page.click('#t-new');
+  await expect(page.locator('button:has-text("New Game+")')).toBeDisabled();
+  await page.click('.dialog button:has-text("Cancel")');
+  await page.evaluate(() => localStorage.setItem('room3d.endings.v1', JSON.stringify(['escape'])));
+  await page.click('#t-new');
+  await page.click('button:has-text("New Game+")');
+  for (let i = 0; i < 8 && !(await page.evaluate(() => window.__room.engine.mode === 'play')); i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(400); }
+  await page.waitForFunction(() => window.__room.engine.mode === 'play' && window.__room.engine.level);
+  const st = await page.evaluate(() => { const s = window.__room.engine.roomState; return { mode: s.mode, wand: s.flags.wand, spells: Object.keys(s.flags.spells || {}).sort(), hearts: s.maxHearts }; });
+  expect(st).toEqual({ mode: 'ngplus', wand: true, spells: ['blink', 'levitate', 'shrink'], hearts: 3 });
+  expect(await level(page, (L) => L.lampLight.color.getHex())).toBe(0x8ab8ff);
+  await expect(page.locator('#timer')).toContainText('NG+');
+});

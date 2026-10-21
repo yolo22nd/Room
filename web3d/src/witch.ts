@@ -61,7 +61,7 @@ export class WitchLevel extends BossLevel {
     this.drops = [];
     this.attacks = [];
     this.clones = [];
-    this.hard = state.mode === 'hard';
+    this.hard = state.mode === 'hard' || state.mode === 'ngplus';
     this.maxHp = this.hard ? 8 : 6;
     this.hp = this.maxHp;
     this.phase = 'intro';

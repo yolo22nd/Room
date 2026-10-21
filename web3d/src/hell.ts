@@ -70,7 +70,7 @@ export class HellLevel extends BossLevel {
     this.hitsTaken = 0;
     this.burnT = 0; this.slipperT = 0;
     this.projectiles = [];
-    this.hard = state.mode === 'hard';
+    this.hard = state.mode === 'hard' || state.mode === 'ngplus';
     this.shield = state.flags.cloak ? 1 : 0;
     this.pinsNeeded = this.hard ? 5 : 4;
     this.build();

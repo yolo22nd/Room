@@ -40,5 +40,10 @@ export function freshRoomState(mode = 'normal', seed = null) {
     }
     st.flags.keyCell = ['nw', 'n', 'ne', 'w', 'm', 'e', 'sw', 's', 'se'][Math.floor(rnd() * 9)];
   }
+  if (mode === 'ngplus') {
+    // New Game+: the witch moved the key; the PC still knows where
+    const rnd = seededRandom('ngplus-' + (seed || Date.now()));
+    st.flags.keyCell = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'][Math.floor(rnd() * 8)];
+  }
   return st;
 }

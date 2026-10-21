@@ -60,7 +60,8 @@ broadcast (her diary), and the lemon. An anvil (physics junk) dropped on the sho
 alternate route to the H key.
 
 **Modes.** Normal, Hard (one heart, a five-pin Kraken), and a date-seeded Daily room (pre-built furniture,
-key hidden in a random cell). There's a speedrun timer with splits against your personal best.
+key hidden in a random cell). New Game+ (after any ending): every spell, the Ember Wand, a blue lantern, a
+moved key and both bosses on hard. There's a speedrun timer with splits against your personal best.
 
 **Endings.** Five of them: decline the rematch, help the witch up, steal her broom, the true ending (every
 secret + every book), and a secret one for players who just... stay and redecorate. An endings gallery tracks them.
@@ -115,7 +116,7 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 ## Features
 
 - Autosave, with checkpoints at the gate of Hell and at the start of the rematch; Continue from the title screen
-- 49 achievements, stored in the browser
+- 50 achievements, stored in the browser
 - Real physics (Rapier, loaded on first use): junk spells (crate, beach ball, anvil) that stack and tumble;
   furniture that misses in Hell tumbles, gets blasted by slams and can roll into the lava
 - Installable PWA with offline play (production build), gamepad support
