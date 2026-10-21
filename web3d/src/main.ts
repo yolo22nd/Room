@@ -41,6 +41,7 @@ import { RogueRoom, UPGRADES, newRun } from './roguelike';
 import { seededRandom } from './state';
 import { Peer } from './net';
 import { CoopLevel } from './coop';
+import { RoomBossLevel } from './roomboss';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 import { setIntensity, setSurface } from './audio';
@@ -73,7 +74,7 @@ function profileState() {
 const lessonsUnlocked = () => seenEndings().some(e => ['apprentice', 'rival', 'true'].includes(e));
 const LESSONS_DONE_KEY = 'room3d.lessons.v1';
 const lessonsDone = (): string[] => { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_KEY) || '[]'); } catch (e) { return []; } };
-import { INTRO, NGPLUS_INTRO, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING, WITCH_TALK } from './story';
+import { INTRO, NGPLUS_INTRO, LANDLORD_INTRO, LANDLORD_END, HELL_ENTRY, ENDING, WITCH_INTRO, WITCH_ENDING, WITCH_TALK } from './story';
 import {
   loadGame, saveGame, hasSave, clearSave, loadSettings, saveSettings, hasSavedSettings,
   ACHIEVEMENTS, isUnlocked, unlockedCount, setAchievementListener, unlock, bestFor, recordRun, loadEditor, saveEditor,
@@ -427,7 +428,7 @@ const engine: any = {
     this.stats.deaths++;
     setHeartbeat(0);
     releaseLock();
-    const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel || this.level instanceof ChamberLevel;
+    const inHell = this.level instanceof HellLevel || this.level instanceof WitchLevel || this.level instanceof ChamberLevel || this.level instanceof RoomBossLevel;
     ui.closeDialog(true);
     ui.screen(`<div class="title-wrap"><h1 style="font-size:64px">You died</h1><p class="sub">${ui.escapeHtml(why || 'it happens')}</p>
       <div class="actions"><button class="btn primary" id="retry">${inHell ? (this.level instanceof ChamberLevel ? 'Retry the lesson' : 'Retry the fight') : 'Load last save'}</button><button class="btn" id="totitle">Back to title</button></div></div>`);
@@ -604,10 +605,46 @@ const engine: any = {
     unlock('lessons');
     ui.story([
       'The tower stops. The library drains. Somewhere, the upside-down room quietly rights itself.',
+      '...and somewhere much closer, in a small dark room, the wallpaper opens one eye.',
       'The witch claps, slowly. "Three for three. I didn\'t think you\'d manage the tower. Nobody manages the tower."',
       '"Next term: the Witch Exams. Bring a sofa."',
       '<em>PART 4 COMPLETE</em>',
     ]).then(() => showEnding('lessons'));
+  },
+
+  // ---------------------------------------------------------------- act 5
+  async startLandlord() {
+    this.mode = 'transition';
+    releaseLock();
+    ui.closeDialog(true); ui.hideScreen();
+    const s = this.roomState && this.roomState.flags ? this.roomState : profileState();
+    s.hearts = s.maxHearts; s.maxMana = s.maxMana || 100; s.mana = s.maxMana;
+    delete s.lesson;
+    this.roomState = s;
+    if (!this.stats) this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+    saveGame({ version: 1, act: 'landlord', room: s, stats: this.stats, savedAt: Date.now() });
+    await ui.story(LANDLORD_INTRO);
+    this.mode = 'play';
+    ui.showHUD(true);
+    const lv = new RoomBossLevel(this, s);
+    this.setLevel(lv);
+    lv.phase = 'intro';
+    await this.playCutscene([
+      { from: [3.6, 2.7, 3.6], to: [-3.6, 2.7, 3.6], lookFrom: [0, 1, 0], lookTo: [0, 1, 0], dur: 3.6, text: 'Back where it all started.' },
+      { from: [0, 1.9, 2.2], to: [0, 1.1, 0.9], lookFrom: [0, 0, -1], lookTo: [0, 0, -0.2], dur: 2.6, text: 'The floorboards blink.' },
+      { from: [0, 2.5, 4], to: [0, 1.62, 3], lookFrom: [0, 1.5, -4], lookTo: [0, 1.5, -4], dur: 2, text: 'THE ROOM' },
+    ]);
+    lv.phase = 'fight';
+    lv.refreshHUD();
+  },
+
+  roomBossDone() {
+    this.mode = 'transition';
+    releaseLock();
+    markChapter('landlord');
+    clearSave();
+    saveProfile(this.roomState);
+    ui.story(LANDLORD_END).then(() => showEnding('checkout'));
   },
 
   async endWith(id) {
@@ -680,7 +717,7 @@ function showTitle() {
           ${shared ? `<button class="btn primary" id="t-shared">▶ Play shared room: “${ui.escapeHtml(shared.custom.title)}”</button>` : ''}
           ${cont ? `<button class="btn ${shared ? '' : 'primary'}" id="t-continue">Continue</button>` : ''}
           <button class="btn ${cont || shared ? '' : 'primary'}" id="t-new">New game</button>
-          <button class="btn" id="t-campaign">📖 Campaign <span class="k" style="float:right">${chaptersDone().length + lessonsDone().length}/6</span></button>
+          <button class="btn" id="t-campaign">📖 Campaign <span class="k" style="float:right">${chaptersDone().length + lessonsDone().length}/7</span></button>
         </div>
         <div class="tile-grid">
           ${tile('t-endless', '♾️', 'Endless')}
@@ -772,6 +809,15 @@ function continueGame(fromDeath = false) {
   if (save.act === 'lesson') {
     engine.roomState = save.room;
     engine.startLesson(save.lesson, false);
+    return;
+  }
+  if (save.act === 'landlord') {
+    const s = save.room; s.hearts = s.maxHearts;
+    engine.roomState = s;
+    engine.mode = 'play'; ui.showHUD(true);
+    const lv = new RoomBossLevel(engine, s);
+    engine.setLevel(lv);
+    lv.phase = 'fight'; lv.refreshHUD();
     return;
   }
   if (save.act === 'hell' || save.act === 'witch') {
@@ -904,11 +950,12 @@ function showEnding(kind = 'escape') {
     <div class="sub">${ENDINGS[kind].sub} <span class="mode-badge">${modeName}</span></div>
     <div class="stats">Time ........ ${ui.fmtTime(t)}${record ? ' ★ new best!' : prev ? ` (best ${ui.fmtTime(prev.total)})` : ''}<br>Deaths ...... ${engine.stats.deaths}<br>Conjured .... ${engine.stats.conjured} things<br>Achievements  ${unlockedCount()}/${ACHIEVEMENTS.length}</div>
     ${rows ? `<table class="splits">${rows}</table>` : ''}
-    <div class="actions" style="margin-top:22px">${['apprentice', 'rival', 'true'].includes(kind) ? '<button class="btn primary" id="e-lessons">▶ Part 4: The Three Lessons</button>' : ''}<button class="btn" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button><button class="btn" id="e-title">Back to title</button></div>
+    <div class="actions" style="margin-top:22px">${['apprentice', 'rival', 'true'].includes(kind) ? '<button class="btn primary" id="e-lessons">▶ Part 4: The Three Lessons</button>' : ''}${kind === 'lessons' ? '<button class="btn primary" id="e-act5">▶ Act 5: Checkout Time</button>' : ''}<button class="btn" id="e-ach">Achievements</button><button class="btn" id="e-end">Endings</button><button class="btn" id="e-title">Back to title</button></div>
     <div class="foot">${ENDINGS[kind].foot}<br>Endings found: ${seenEndings().length}/${ENDING_IDS.length}</div></div>`);
   document.getElementById('e-ach').onclick = () => showAchievements();
   document.getElementById('e-end').onclick = () => showEndings();
   const el = document.getElementById('e-lessons'); if (el) el.onclick = () => { sfx.click(); engine.startLesson('upside'); };
+  const a5 = document.getElementById('e-act5'); if (a5) a5.onclick = () => { sfx.click(); engine.startLandlord(); };
   document.getElementById('e-title').onclick = () => showTitle();
 }
 
@@ -1015,6 +1062,7 @@ function showCampaign() {
     { n: '2', id: 'hell', title: 'Go To Hell', sub: 'Kraken 2.0 and the giant nail.', open: done.includes('room'), done: done.includes('hell'), go: () => { fresh(); engine.roomState = profileState(); ui.hideScreen(); engine.enterHell(); } },
     { n: '3', id: 'witch', title: 'The Rematch', sub: 'The witch\'s garden at dusk.', open: done.includes('hell'), done: done.includes('witch'), go: () => { fresh(); engine.roomState = profileState(); ui.hideScreen(); ui.showHUD(true); engine.startWitch(); } },
     ...LESSON_ORDER.map((id, i) => ({ n: '4.' + (i + 1), id, title: LESSONS[id].title.split(' — ')[1], sub: ['Things fall up.', 'The water is rising.', 'The tower never stops turning.'][i], open: lessonsUnlocked() && (i === 0 || ld.includes(LESSON_ORDER[i - 1])), done: ld.includes(id), go: () => { fresh(); engine.startLesson(id); } })),
+    { n: '5', id: 'landlord', title: 'Checkout Time', sub: 'The room you started in wakes up.', open: ld.includes('clockwork'), done: done.includes('landlord'), go: () => { fresh(); engine.roomState = profileState(); engine.startLandlord(); } },
   ];
   const box = ui.dialog({
     title: '📖 Campaign',

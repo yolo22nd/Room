@@ -123,6 +123,19 @@ export const NGPLUS_INTRO = [
   'Good news: you remember every spell you learned.\nBad news: so does everything down there.\n\n<em>GO  TO  HELL+</em>',
 ];
 
+export const LANDLORD_INTRO = [
+  'Lessons over, you go back for your lamp.\nThe room is exactly as you left it.\nThe bed. The rug. The PC, still smug.',
+  'Then the floorboards <em>blink</em>.',
+  '"Leaving?" says the room, from everywhere at once.\n"After everything I let you put in me?\nNobody checks out of ROOM."',
+  '<em>ACT 5: CHECKOUT TIME</em>',
+];
+export const LANDLORD_END = [
+  'The room groans one last time. Its eyes close. Its walls fold open like the pages of a book,\nand behind them is grass, and sky, and your own front door.',
+  'A tiny voice from the wallpaper: "...you can visit. If you want. Bring a sofa."',
+  'You are home. You have a bath. You eat soup.\nYou do not conjure furniture for <em>at least</em> a week.',
+  '<em>THE END</em>\n(for real this time)',
+];
+
 export const WITCH_INTRO = [
   'You step through the white door onto cool grass. Dusk. Fireflies. A ring of standing stones.',
   'The witch drifts down on her broom and lands in front of you.\n"Rematch, then. I did ask."',

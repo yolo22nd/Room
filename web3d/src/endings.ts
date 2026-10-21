@@ -43,6 +43,10 @@ export const ENDINGS = {
       '<em>TRUE ENDING: THE TRUTH</em>',
     ],
   },
+  checkout: {
+    title: 'Checkout Time', sub: 'act 5 · the room let you go',
+    hint: 'Beat the room itself.', foot: 'Nobody checks out of ROOM. Except you.', notEnding: true,
+  },
   lessons: {
     title: 'Three for Three', sub: 'part 4 · the three lessons passed',
     hint: 'Pass all three of the witch\'s lessons.', foot: 'Next term: the Witch Exams.', notEnding: true,
