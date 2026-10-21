@@ -60,3 +60,11 @@ Decisions (from the planning Q&A):
 17. **Ember coins + shop** — earn in every mode, spend on cosmetics
 18. **Sound and music** — new themes for lessons, endless, boss rush, Act 5 and the title; health-reactive music
 19. **Tutorial + onboarding** — gentle first minutes, hints when stuck, skippable controls card
+
+## Visual revamp (stylised low-poly, web, real CC0 assets)
+
+✅ R1. Image-based lighting per area, ambient occlusion (high), neutral tone mapping
+✅ R2. Real-model pipeline: `public/models/manifest.json`, fitted furniture swaps, animated characters (cat, witch hooked up)
+✅ R3. New UI theme: fonts, chunky panels/buttons/tiles, HUD pills
+R4. Download and convert CC0 packs (Kenney, Quaternius, Poly Haven) — blocked until the environment allows those domains
+R5. Per-level art pass with the real models; Kraken and the Room boss models

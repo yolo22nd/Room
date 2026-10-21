@@ -40,3 +40,20 @@ test('assets: with no manifest the game runs on procedural models', async ({ pag
   expect(await page.evaluate(() => window.__room.modelIds())).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('assets: animated stand-ins drive the cat and the witch', async ({ page }) => {
+  await page.route('**/models/manifest.json', r => r.fulfill({ json: { 'character/cat': { url: 'models/robot.glb', height: 0.4 }, 'character/witch': { url: 'models/robot.glb', height: 1.9 } } }));
+  await page.route('**/models/robot.glb', r => r.fulfill({ body: robot, contentType: 'model/gltf-binary' }));
+  const errors = await boot(page, { save: roomSave('witch', { placed: { bed: { type: 'bed', slot: 'n', rot: 0 } } }) });
+  await page.evaluate(() => { localStorage.setItem('room3d.cat.v1', JSON.stringify({ adopted: true })); return window.__room.loadAssets(); });
+  await page.click('#t-continue');
+  await page.waitForFunction(() => window.__room.engine.level && window.__room.engine.level.witch);
+  expect(await page.evaluate(() => !!window.__room.engine.level.witch.userData.anim)).toBe(true);
+  await page.waitForTimeout(800);
+  // the cat comes along to the room
+  await page.evaluate(() => { const R = window.__room; R.startRoom(R.freshRoomState('normal')); });
+  await page.waitForFunction(() => !!window.__room.engine.cat);
+  expect(await page.evaluate(() => !!window.__room.engine.cat.anim)).toBe(true);
+  await page.waitForTimeout(800);
+  expect(errors).toEqual([]);
+});

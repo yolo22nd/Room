@@ -10,6 +10,7 @@ import * as ui from './ui';
 import { sfx, playAmbience } from './audio';
 import { unlock } from './save';
 import { WITCH_TAUNTS } from './story';
+import { animated } from './assets';
 
 // Part 3: the rematch in the witch's garden.
 const ARENA_R = 15;
@@ -27,6 +28,17 @@ function canvasTex(w, h, draw, repeat?) {
 
 function makeWitchModel() {
   const g = new THREE.Group();
+  // a real rigged witch, if one is installed (assets manifest: character/witch)
+  const real = animated('character/witch');
+  if (real) {
+    g.add(real.object); real.object.position.y = 0.55;
+    const broom = new THREE.Group(); broom.position.y = 0.7; g.add(broom);
+    const stick = cyl(0.04, 0.04, 2.2, new THREE.MeshStandardMaterial({ color: 0x6b4226 }), 0, 0, 0, broom, 8); stick.rotation.x = Math.PI / 2;
+    g.userData.broom = broom; g.userData.anim = real;
+    real.play('fly') || real.play('idle');
+    g.traverse((o: any) => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
   const robe = new THREE.MeshStandardMaterial({ color: 0x2a1240, roughness: 0.8 });
   const skin = new THREE.MeshStandardMaterial({ color: 0xe8cfae, roughness: 0.7 });
   const hatM = new THREE.MeshStandardMaterial({ color: 0x140818, roughness: 0.6 });
@@ -276,6 +288,17 @@ export class WitchLevel extends BossLevel {
     this.bubble.visible = !this.vulnerable() && w.state !== 'defeated';
     this.bubble.material.opacity = 0.18 + Math.sin(this.time * 4) * 0.05;
     this.witch.userData.broom.rotation.z = Math.sin(this.time * 3) * 0.1;
+    // drive a rigged model's clips from her state (no-op for the built-in model)
+    for (const m of [this.witch, ...this.clones.map(c => c.obj)]) {
+      const an = m.userData.anim;
+      if (!an) continue;
+      const st = w.state;
+      if (st === 'cast') an.play('cast') || an.play('attack') || an.play('idle');
+      else if (st === 'stunned') an.play('hit') || an.play('dizzy') || an.play('idle');
+      else if (st === 'defeated') an.play('death') || an.play('sit') || an.play('idle');
+      else an.play('fly') || an.play('idle');
+      an.mixer.update(dt);
+    }
     // sparks trail behind the broom while she flies
     if (this.witch.visible && (w.state === 'fly' || w.state === 'ascend' || w.state === 'descend')) {
       this.sparkT = (this.sparkT || 0) - dt;

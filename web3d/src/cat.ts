@@ -3,6 +3,7 @@ import { glowSprite } from './textures';
 import * as ui from './ui';
 import { sfx } from './audio';
 import { unlock } from './save';
+import { animated } from './assets';
 
 // The cat familiar: follows you around, naps on soft furniture, stares at
 // secrets, can be petted, and has opinions.
@@ -52,7 +53,9 @@ export class Cat {
   [key: string]: any;
   constructor(engine, level) {
     this.engine = engine; this.level = level;
-    this.g = catModel();
+    // a real animated cat if one is installed (assets manifest: character/cat)
+    this.anim = animated('character/cat');
+    this.g = this.anim ? this.anim.object : catModel();
     const p = engine.player.pos;
     this.g.position.set(p.x - 0.8, 0, p.z + 0.8);
     level.scene.add(this.g);
@@ -119,6 +122,15 @@ export class Cat {
       if (this.state !== 'nap' && !(target.y > 0)) g.position.y = 0;
     }
     // animation
+    if (this.anim) {
+      const a = this.anim;
+      if (this.state === 'nap') a.play('sleep') || a.play('lie') || a.play('idle');
+      else if (walking) a.play('walk') || a.play('run') || a.play('idle');
+      else if (this.state === 'sit' || this.state === 'stare') a.play('sit') || a.play('idle');
+      else a.play('idle');
+      a.mixer.update(dt);
+      return;
+    }
     this.walkPhase += dt * (walking ? 14 : 0);
     u.legs.forEach((l, i) => { l.rotation.x = walking ? Math.sin(this.walkPhase + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0; });
     const sit = this.state === 'sit' || this.state === 'stare';
