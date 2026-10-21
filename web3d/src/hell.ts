@@ -447,6 +447,9 @@ export class HellLevel extends BossLevel {
           if (this.phys) this.phys.impulseAt(T.target, 5, 7);
           this.fx.dust(T.target, 1.6);
           this.fx.burst(T.target.clone().setY(0.3), { count: 14, color: '#ff7a30', speed: 4, life: 0.6, size: 0.4 });
+          // molten splash droplets and a shock ring
+          this.fx.burst(T.target.clone().setY(0.2), { count: 12, color: '#ffc040', speed: 3.5, life: 0.9, size: 0.22, gravity: -14, up: 2.2 });
+          this.fx.ring(T.target, 2.4, 0xff7a30);
           const d = Math.hypot(this.player.pos.x - T.target.x, this.player.pos.z - T.target.z);
           this.player.addShake(Math.max(0.25, 1.2 - d / 10));
           if (d < (this.player.shrunk > 0 ? 1.1 : 1.9)) this.hurt(1, 'flattened by a tentacle');

@@ -276,6 +276,15 @@ export class WitchLevel extends BossLevel {
     this.bubble.visible = !this.vulnerable() && w.state !== 'defeated';
     this.bubble.material.opacity = 0.18 + Math.sin(this.time * 4) * 0.05;
     this.witch.userData.broom.rotation.z = Math.sin(this.time * 3) * 0.1;
+    // sparks trail behind the broom while she flies
+    if (this.witch.visible && (w.state === 'fly' || w.state === 'ascend' || w.state === 'descend')) {
+      this.sparkT = (this.sparkT || 0) - dt;
+      if (this.sparkT <= 0) {
+        this.sparkT = 0.07;
+        const back = new THREE.Vector3(0, 0.7, -1.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.witch.rotation.y).add(this.witch.position);
+        this.fx.burst(back, { count: 2, color: '#d8a8ff', speed: 0.4, life: 0.6, size: 0.18, up: -0.2 });
+      }
+    }
     // clones mirror her pose
     for (const c of this.clones) { c.obj.rotation.y = Math.atan2(this.player.pos.x - c.obj.position.x, this.player.pos.z - c.obj.position.z); c.obj.position.y = this.witch.position.y; }
   }
@@ -402,6 +411,9 @@ export class WitchLevel extends BossLevel {
   landed(d) {
     sfx.thud(1.2);
     this.fx.dust(d.target, 1.2);
+    if (!d.mine) this.fx.burst(d.target.clone().setY(0.4), d.type === 'pumpkin'
+      ? { count: 18, color: '#ff8a20', speed: 4, life: 0.7, size: 0.3, gravity: -12, up: 1.8, additive: false }
+      : { count: 16, color: '#7dff6a', speed: 3, life: 0.8, size: 0.28, gravity: -10, up: 1.5 });
     const pd = Math.hypot(this.player.pos.x - d.target.x, this.player.pos.z - d.target.z);
     this.player.addShake(Math.max(0, 0.7 - pd / 12));
     if (!d.mine) {

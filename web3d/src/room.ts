@@ -180,7 +180,52 @@ export class Room {
       cyl(0.03, 0.03, 0.16, wax, x, 2.06, 0.17, grp, 8).castShadow = false;
       const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow2('#ffb040'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
       flame.scale.set(0.12, 0.2, 1); flame.position.set(x, 2.2, 0.17); flame.visible = false; grp.add(flame);
+      // a soft halo on the wall behind each flame
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow2('#ff9a40'), transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.position.set(0, 0, -0.09); halo.scale.set(6, 4, 1); flame.add(halo); // in flame units (it scales with the flame)
       this.candles.push(flame);
+    }
+    // two flickering candle lights (north pair, west pair)
+    this.candleLights = [['n', 0.25], ['w', 0]].map(([side, x]) => {
+      const grp = new THREE.Group(); grp.applyMatrix4(sideMatrix(side as string)); g.add(grp);
+      const l = new THREE.PointLight(0xff9a48, 0, 6, 2); l.position.set(x as number, 2.2, 0.5); grp.add(l);
+      return l;
+    });
+    // light falling in from the void window
+    const shaftTex = (() => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+      const x = c.getContext('2d');
+      const gy = x.createLinearGradient(0, 0, 0, 128); gy.addColorStop(0, 'rgba(255,255,255,0.9)'); gy.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gy; x.fillRect(0, 0, 64, 128);
+      x.globalCompositeOperation = 'destination-in';
+      const gx = x.createLinearGradient(0, 0, 64, 0); gx.addColorStop(0, 'rgba(0,0,0,0)'); gx.addColorStop(0.3, 'rgba(0,0,0,1)'); gx.addColorStop(0.7, 'rgba(0,0,0,1)'); gx.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = gx; x.fillRect(0, 0, 64, 128);
+      return new THREE.CanvasTexture(c);
+    })();
+    this.shafts = [-0.25, 0.25].map((dx, i) => {
+      const geo = new THREE.PlaneGeometry(1.25, 3.4); geo.translate(0, -1.7, 0);
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: shaftTex, color: 0x9a80ff, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      m.position.set(wx + dx * 0.4, wy + 0.6, 0.06); m.rotation.set(-1.05 - i * 0.12, dx * 0.4, 0); winGroup.add(m);
+      return m;
+    });
+    // a few loose pages on the floor along the walls
+    const paper = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.9, side: THREE.DoubleSide });
+    for (const [px, pz, r] of [[-4.1, 1.2, 0.4], [-3.8, 1.6, 1.9], [3.9, -2.6, 2.6], [1.4, 4.15, 0.9], [-1.9, -4.1, 2.2], [4.1, 3.1, 1.2]]) {
+      const pg = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.29), paper); pg.rotation.set(-Math.PI / 2, 0, r); pg.position.set(px, 0.006, pz); pg.receiveShadow = true; g.add(pg);
+    }
+    // cobwebs in two ceiling corners
+    const webTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const x = c.getContext('2d'); x.strokeStyle = 'rgba(230,230,240,0.55)'; x.lineWidth = 1;
+      for (let a = 0; a <= 8; a++) { const t = a / 8 * Math.PI / 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(t) * 128, Math.sin(t) * 128); x.stroke(); }
+      for (let r = 14; r < 128; r += 14) { x.beginPath(); for (let a = 0; a <= 8; a++) { const t = a / 8 * Math.PI / 2, rr = r + Math.sin(a * 2.3 + r) * 3; a ? x.lineTo(Math.cos(t) * rr, Math.sin(t) * rr) : x.moveTo(Math.cos(t) * rr, Math.sin(t) * rr); } x.stroke(); }
+      return new THREE.CanvasTexture(c);
+    })();
+    for (const [cx, cz, ry] of [[-HALF, -HALF, 0], [HALF, HALF, Math.PI]] as [number, number, number][]) {
+      const web = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: webTex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      web.geometry.translate(0.55, -0.55, 0);
+      const holder = new THREE.Group(); holder.position.set(cx, WALL_H, cz); holder.rotation.y = ry; g.add(holder);
+      web.rotation.y = -Math.PI / 4; web.position.set(0.02, 0, 0.02); holder.add(web);
     }
     this.paintEyes = [];
     const white = new THREE.MeshStandardMaterial({ color: 0xf4efe0, roughness: 0.3 });
@@ -320,11 +365,13 @@ export class Room {
     return null;
   }
 
-  setCandles(on) { (this.candles || []).forEach(c => { c.visible = on; }); }
+  setCandles(on) { (this.candles || []).forEach(c => { c.visible = on; }); this.candlesOn = on; }
 
   update(dt, t, camPos) {
     if (this.voidTex) { this.voidTex.center.set(0.5, 0.5); this.voidTex.rotation += dt * 0.08; }
     if (this.candles) this.candles.forEach((c, i) => { if (c.visible) c.scale.set(0.12 + Math.sin(t * 9 + i) * 0.015, 0.2 + Math.sin(t * 13 + i * 2) * 0.03, 1); });
+    if (this.candleLights) this.candleLights.forEach((l, i) => { l.intensity = this.candlesOn ? 1.4 + Math.sin(t * 11 + i * 3) * 0.35 + Math.sin(t * 23 + i) * 0.2 : 0; });
+    if (this.shafts) this.shafts.forEach((s, i) => { s.material.opacity = 0.1 + Math.sin(t * 0.7 + i * 2) * 0.03; });
     if (camPos && this.paintEyes) {
       const w = new THREE.Vector3();
       for (const e of this.paintEyes) { e.getWorldPosition(w); e.lookAt(camPos.x, camPos.y, camPos.z); }

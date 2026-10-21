@@ -117,6 +117,12 @@ export class LibraryLevel extends ChamberLevel {
     // water
     this.waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshStandardMaterial({ color: 0x2a6a9a, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2, emissive: 0x0a2030, depthWrite: false, side: THREE.DoubleSide }));
     this.waterMesh.rotation.x = -Math.PI / 2; this.root.add(this.waterMesh);
+    // bubbles rising through the water
+    const bg = new THREE.BufferGeometry(), bp = new Float32Array(90 * 3);
+    for (let i = 0; i < 90; i++) { bp[i * 3] = (Math.random() - 0.5) * 11; bp[i * 3 + 1] = Math.random(); bp[i * 3 + 2] = (Math.random() - 0.5) * 11; }
+    bg.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+    this.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.09, map: glowSprite('#bfeaff'), transparent: true, opacity: 0.7, depthWrite: false }));
+    this.root.add(this.bubbles);
     // six glowing books, low ones near the start
     const spots = [[3.2, 5.6, 0.45], [-3.2, 5.6, 1.1], [5.6, 0.2, 2.0], [-5.6, 0.2, 3.6], [2.5, -5.6, 4.6], [-2.5, -5.6, 5.3]];
     this.books = spots.map(([x, z, y]) => {
@@ -165,6 +171,14 @@ export class LibraryLevel extends ChamberLevel {
     if (this.phase !== 'play') return;
     this.water = Math.min(this.cfg.h, this.water + this.rate * dt);
     this.waterMesh.position.y = this.water;
+    const bpos = this.bubbles.geometry.attributes.position;
+    this.bubbles.visible = this.water > 0.15;
+    for (let i = 0; i < bpos.count; i++) {
+      let y = bpos.getY(i) + dt * (0.35 + (i % 5) * 0.08);
+      if (y > this.water - 0.05) y = Math.random() * Math.max(0.05, this.water - 0.1);
+      bpos.setY(i, y); bpos.setX(i, bpos.getX(i) + Math.sin(this.time * 3 + i) * dt * 0.05);
+    }
+    bpos.needsUpdate = true;
     this.waterMesh.material.opacity = 0.5 + Math.sin(this.time * 2) * 0.05;
     // float the player and the furniture
     const floatY = Math.max(0, this.water - 1.3);

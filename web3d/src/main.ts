@@ -5,14 +5,16 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
-// subtle film grain + lens vignette, applied after tone mapping
+// subtle film grain + lens vignette + per-area colour grade, applied after tone mapping
 const GrainShader = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 0.045 } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amount: { value: 0.045 }, tint: { value: new THREE.Vector3(1, 1, 1) }, sat: { value: 1 }, contrast: { value: 1 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform float amount; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform float amount; uniform vec3 tint; uniform float sat; uniform float contrast; varying vec2 vUv;
     float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
+      c.rgb = mix(vec3(dot(c.rgb, vec3(0.299, 0.587, 0.114))), c.rgb, sat);
+      c.rgb = clamp((c.rgb - 0.5) * contrast + 0.5, 0.0, 1.0) * tint;
       float v = smoothstep(0.95, 0.35, distance(vUv, vec2(0.5)));
       c.rgb *= mix(0.72, 1.0, v);
       c.rgb += (rnd(vUv * 731.0) - 0.5) * amount;
@@ -387,6 +389,10 @@ const engine: any = {
     renderPass.scene = level.scene;
     level.activate();
     this.refreshTouchButtons();
+    // colour grade per area: [tint r, g, b, saturation, contrast]
+    const name = level.chapterId || (level instanceof RoomLevel ? 'room' : level instanceof HellLevel ? 'hell' : level instanceof WitchLevel ? 'witch' : '');
+    const G = { room: [1.02, 0.99, 0.95, 1.03, 1.02], hell: [1.08, 0.94, 0.86, 1.15, 1.1], witch: [0.94, 0.96, 1.1, 1.08, 1.05], upside: [1.0, 0.94, 1.1, 1.1, 1.05], library: [0.92, 1.03, 1.08, 1.05, 1.03], clockwork: [1.07, 1.0, 0.88, 1.0, 1.08] }[name] || [1, 1, 1, 1.04, 1.03];
+    grain.uniforms.tint.value.set(G[0], G[1], G[2]); grain.uniforms.sat.value = G[3]; grain.uniforms.contrast.value = G[4];
   },
 
   // Lamp and Search only mean something in the room; elsewhere Search casts Shrink.
