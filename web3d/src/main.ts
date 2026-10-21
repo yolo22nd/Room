@@ -42,6 +42,7 @@ import { seededRandom } from './state';
 import { Peer } from './net';
 import { CoopLevel } from './coop';
 import { RoomBossLevel } from './roomboss';
+import { Cat, catAdopted, catSettings, saveCat } from './cat';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 import { setIntensity, setSurface } from './audio';
@@ -384,16 +385,41 @@ const engine: any = {
 
   setLevel(level) {
     this.paused = false;
+    this.cat = null;
     if (demo) { demo.deactivate(); demo = null; }
     if (this.level) this.level.deactivate();
     this.level = level;
     renderPass.scene = level.scene;
     level.activate();
     this.refreshTouchButtons();
+    this.spawnCat();
     // colour grade per area: [tint r, g, b, saturation, contrast]
     const name = level.chapterId || (level instanceof RoomLevel ? 'room' : level instanceof HellLevel ? 'hell' : level instanceof WitchLevel ? 'witch' : '');
     const G = { room: [1.02, 0.99, 0.95, 1.03, 1.02], hell: [1.08, 0.94, 0.86, 1.15, 1.1], witch: [0.94, 0.96, 1.1, 1.08, 1.05], upside: [1.0, 0.94, 1.1, 1.1, 1.05], library: [0.92, 1.03, 1.08, 1.05, 1.03], clockwork: [1.07, 1.0, 0.88, 1.0, 1.08] }[name] || [1, 1, 1, 1.04, 1.03];
     grain.uniforms.tint.value.set(G[0], G[1], G[2]); grain.uniforms.sat.value = G[3]; grain.uniforms.contrast.value = G[4];
+  },
+
+  // the cat comes along to calm places (not boss fights) once adopted and not sent off
+  spawnCat() {
+    const lv = this.level;
+    if (!catAdopted() || catSettings().away || !(lv instanceof RoomLevel || lv instanceof ChamberLevel) || lv.cat) return;
+    this.cat = new Cat(this, lv);
+  },
+  toggleCat() {
+    if (this.cat) {
+      this.cat.dispose(); this.cat = null;
+      saveCat({ ...catSettings(), away: true });
+      ui.log('The cat flicks its tail and saunters off through a gap that wasn\'t there a second ago.');
+      return;
+    }
+    const first = !catAdopted();
+    if (first && !this.spend(15)) return;
+    saveCat({ ...catSettings(), adopted: true, away: false });
+    this.spawnCat();
+    if (!this.cat) { ui.log('The cat refuses to come here. Fair.', 'warn'); return; }
+    sfx.meow(); sfx.conjure();
+    if (first) { unlock('familiar'); ui.log('A cat drops from the sky, lands on its feet (obviously) and decides you are its person now.', 'good'); }
+    else ui.log('The cat appears from nowhere, as cats do.', 'good');
   },
 
   // Lamp and Search only mean something in the room; elsewhere Search casts Shrink.
@@ -411,6 +437,7 @@ const engine: any = {
     if (this.mode !== 'play' || s.hearts <= 0) return;
     s.hearts = Math.max(0, s.hearts - n);
     sfx.hurt(); ui.flash('#ff2030', 0.45, 500); player.addShake(0.8);
+    if (this.cat) this.cat.judge();
     ui.setHearts(s.hearts, s.maxHearts);
     if (s.hearts <= 0) this.die(why);
   },
@@ -693,7 +720,7 @@ function buildDemo() {
 }
 
 function showTitle() {
-  engine.run = null; engine.rush = null;
+  engine.run = null; engine.rush = null; engine.cat = null;
   if (engine.peer) { engine.peer.send({ t: 'bye' }); engine.peer.close(); engine.peer = null; }
   engine.mode = 'title'; engine.paused = false;
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
@@ -1305,6 +1332,7 @@ function frame() {
       }
       player.update(dt);
       engine.level.update(dt);
+      if (engine.cat) engine.cat.update(dt);
       setIntensity(engine.level.intensity ? engine.level.intensity() : 0);
       setSurface(engine.level.surface ? engine.level.surface() : 'wood');
       if (engine.pendingSave) engine.autosave();

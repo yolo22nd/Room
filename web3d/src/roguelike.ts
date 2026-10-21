@@ -183,6 +183,10 @@ export class RogueRoom extends ChamberLevel {
     this.refreshHUD();
   }
 
+  catInterest() {
+    if (this.kind !== 'hunt' || !this.exit.locked || !this.keyIn) return null;
+    return { key: 'key', pos: this.keyIn.group.position, msg: `The cat sniffs the ${CATALOG[this.keyIn.type].name.toLowerCase()} and sits down next to it, looking smug.` };
+  }
   peek() {
     if (!this.exit.locked) return;
     if (!this.engine.spend(25)) return;

@@ -371,6 +371,7 @@ export class RoomLevel {
     }
     if (this.state.lamp && this.state.lamp !== 'hand') this.lantern.traverse((o: any) => { if (o.isMesh) list.push(o); });
     if (this.room.voidPane) list.push(this.room.voidPane);
+    if (this.engine.cat && this.engine.cat.level === this) list.push(...this.engine.cat.meshes);
     return list;
   }
 
@@ -387,7 +388,7 @@ export class RoomLevel {
   }
 
   focusLabel(f) {
-    const names = { tap: 'Sink', shower: 'Shower', toilet: 'Toilet', stove: 'Stove', knives: 'Knife block', fridge: 'Fridge', portal: 'Portal to Hell', lamp: 'Lamp', voidwindow: 'Window onto the void' };
+    const names = { tap: 'Sink', shower: 'Shower', toilet: 'Toilet', stove: 'Stove', knives: 'Knife block', fridge: 'Fridge', portal: 'Portal to Hell', lamp: 'Lamp', voidwindow: 'Window onto the void', cat: 'Pet the cat' };
     return names[f.owner] || (CATALOG[f.owner] ? CATALOG[f.owner].name : f.owner);
   }
 

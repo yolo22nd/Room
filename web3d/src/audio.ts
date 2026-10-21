@@ -125,6 +125,9 @@ export const sfx = {
     noise(1.2, { vol: 0.5, freq: 500, sweep: 0.2 });
   },
   heartbeat() { tone(60, 0.12, { type: 'sine', vol: 0.4, slide: 0.6 }); tone(55, 0.14, { type: 'sine', vol: 0.3, slide: 0.6, delay: 0.18 }); },
+  purr() { cap('[purring]'); for (let i = 0; i < 6; i++) noise(0.14, { vol: 0.05, freq: 120, q: 2, type: 'lowpass', delay: i * 0.17 }); },
+  hiss() { cap('[the cat hisses]'); noise(0.5, { vol: 0.06, freq: 4200, q: 1.5, type: 'highpass', attack: 0.02 }); },
+  meow() { cap('[meow]'); tone(700, 0.35, { type: 'triangle', vol: 0.06, slide: 0.6, attack: 0.03 }); },
   whisper() { cap('[eerie whispering]'); noise(1.6, { vol: 0.08, freq: 1800, q: 5, type: 'bandpass', attack: 0.4, sweep: 0.6 }); },
 };
 

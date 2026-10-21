@@ -30,6 +30,27 @@ export const interactionsMethods = {
     if (fn) fn.call(this, f);
   },
 
+  use_cat(this: any) { if (this.engine.cat) this.engine.cat.pet(); },
+
+  // what the cat notices: unfound secrets near the player
+  catInterest(this: any) {
+    const fl = this.state.flags;
+    const at = (type) => { const e = this.entities.get(type); return e && e.group ? e.group.position : null; };
+    const shelf = at('shelf'), closet = at('closet'), bed = at('bed');
+    if (shelf && !fl.wand) return { key: 'wand', pos: shelf, msg: 'The cat stares at the bookshelf, tail twitching. One book sits a little crooked.' };
+    if (closet && !fl.cloak) return { key: 'cloak', pos: closet, msg: 'The cat paws at the back of the closet and hisses. Something behind the clothes sounds hollow.' };
+    if (bed && !fl.crystal) return { key: 'crystal', pos: bed, msg: 'The cat peers under the bed and puffs up its tail. Something small glints down there.' };
+    return null;
+  },
+  // somewhere soft for a nap
+  napSpot(this: any) {
+    for (const [type, y] of [['bed', 0.62], ['sofa', 0.48], ['cushion', 0.2]] as [string, number][]) {
+      const e = this.entities.get(type);
+      if (e && e.group) return new THREE.Vector3(e.group.position.x, y, e.group.position.z);
+    }
+    return null;
+  },
+
   // knock three times on the window onto the void
   use_voidwindow(this: any) {
     const now = performance.now();

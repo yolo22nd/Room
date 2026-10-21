@@ -18,6 +18,7 @@ import { unlock } from '../save';
 import { BOOKS, DREAM, TV_BROADCAST, KITCHEN_NOTE, MIRROR_LINES, PC_SURF, PC_MAIL, WITCH_DIARY } from '../story';
 
 import { HUG, SEATS, ROT_FRONT, SIDE_FRONT_ROT } from './shared';
+import { catAdopted } from '../cat';
 
 export const placementMethods = {
   openSpellbook(this: any) {
@@ -42,8 +43,10 @@ export const placementMethods = {
       const k = knows(this.state, id);
       html += `<button class="spell${k ? '' : ' locked'}" data-spell="${id}" title="${k ? sp.desc : sp.learn}"><span class="ico">${k ? sp.icon : '❔'}</span><span class="nm">${k ? sp.name : '???'}</span><span class="ty">${k ? manaCost(id) + ' mana' : sp.learn}</span></button>`;
     }
+    html += `<button class="spell" data-familiar="1"><span class="ico">🐈</span><span class="nm">${this.engine.cat ? 'Send the cat off' : 'Familiar'}</span><span class="ty">${this.engine.cat ? 'it will be back' : catAdopted() ? 'call your cat' : '15 mana · a friend'}</span></button>`;
     html += '</div>';
     const box = ui.dialog({ title: '📖 Spellbook', html, wide: true });
+    box.querySelector<any>('[data-familiar]').addEventListener('click', () => { ui.closeDialog(); this.engine.toggleCat(); });
     box.querySelectorAll<any>('[data-spell]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.spell;
       if (!knows(this.state, id)) { ui.log(`You haven't learned that spell yet. Hint: ${SPELLS[id].learn}`, 'lore'); return; }
