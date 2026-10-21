@@ -211,6 +211,7 @@ player.sensitivity = settings.sensitivity; player.invertY = settings.invertY;
 const engine: any = {
   camera, player, renderer,
   quality: settings.quality,
+  hintsOn: settings.hints !== false,
   touch: input.touch,
   level: null,
   mode: 'title',          // title | play | dead | transition
@@ -846,6 +847,9 @@ async function newGame(mode = 'normal', seed = null) {
   engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
   playAmbience('dark');
   await ui.story(mode === 'ngplus' ? NGPLUS_INTRO : INTRO);
+  // first game ever: a quick, skippable controls card
+  let seen = true; try { seen = !!localStorage.getItem('room3d.onboard.v1'); localStorage.setItem('room3d.onboard.v1', '1'); } catch (e) { /* storage blocked */ }
+  if (!seen) await new Promise<void>(res => ui.dialog({ title: 'Quick controls', html: controlsHtml() + '<p class="muted">Stuck? Hints pop up after a while (switch them off in Settings). All controls: pause → How to play.</p>', buttons: [{ label: 'Got it', cls: 'primary', onClick: () => res() }], onClose: () => res() }));
   const st = freshRoomState(mode, seed);
   if (mode === 'ngplus') { st.flags.wand = true; st.flags.spells = { levitate: true, shrink: true, blink: true }; }
   startRoom(st);
@@ -1187,6 +1191,12 @@ function showAchievements() {
   });
 }
 
+function controlsHtml() {
+  return input.touch
+    ? '<p><b>Left stick</b> move · <b>drag</b> to look<br><b>Spells</b> open the spellbook · <b>Cast</b> conjure<br><b>Use</b> interact · <b>Lamp</b> · <b>Search</b> the floor</p>'
+    : '<p><kbd>WASD</kbd> move · <kbd>Mouse</kbd> look (click to capture)<br><kbd>Q</kbd> spellbook · <kbd>Click</kbd> cast · <kbd>R</kbd> rotate<br><kbd>E</kbd> interact · <kbd>F</kbd> lamp · <kbd>G</kbd> search · <kbd>Esc</kbd> pause</p>';
+}
+
 function showHelp() {
   const touch = input.touch;
   ui.dialog({
@@ -1223,6 +1233,7 @@ function showSettings() {
       <div class="setting"><span>Auto resolution<br><small class="muted">lowers the render scale to keep it smooth</small></span>${chk('s-autores', settings.autoRes)}</div>
       <div class="setting"><span>Show FPS</span>${chk('s-fps', settings.showFps)}</div>
       <div class="setting"><span>Speedrun timer</span>${chk('s-timer', settings.showTimer)}</div>
+      <div class="setting"><span>Hints when stuck<br><small class="muted">a nudge after a while on the same goal</small></span>${chk('s-hints', settings.hints)}</div>
       <div class="settings-section">Accessibility</div>
       <div class="setting"><span>Reduced motion<br><small class="muted">no camera shake, head-bob or bright flashes</small></span>${chk('s-motion', settings.reducedMotion)}</div>
       <div class="setting"><span>Telegraph colours</span>${sel('s-pal', [['standard', 'Standard'], ['safe', 'Colour-blind safe']], settings.palette)}</div>`,
@@ -1239,6 +1250,7 @@ function showSettings() {
     settings.voice = box.querySelector<any>('#s-voice').checked;
     settings.autoRes = box.querySelector<any>('#s-autores').checked;
     settings.showFps = box.querySelector<any>('#s-fps').checked;
+    settings.hints = box.querySelector<any>('#s-hints').checked; engine.hintsOn = settings.hints;
     if (!settings.autoRes && resScale !== 1) { resScale = 1; }
     settings.reducedMotion = box.querySelector<any>('#s-motion').checked;
     settings.palette = box.querySelector<any>('#s-pal').value;

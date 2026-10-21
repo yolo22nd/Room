@@ -139,6 +139,8 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
   Act 5, and goes muffled on your last heart; surface-aware footsteps
 - Adaptive resolution and instanced rendering for phones
 - Touch controls are switched on automatically on phones and tablets
+- A one-time controls card on your first game, and gentle hints if you're stuck on a goal for a while
+  (switch off in Settings)
 
 ## Code map
 

@@ -564,6 +564,7 @@ export class RoomLevel {
     const ps = this.state.player;
     ps.x = this.player.pos.x; ps.z = this.player.pos.z; ps.yaw = this.player.yaw;
     this.updateObjective();
+    this.stuckHint(dt);
   }
 
   /** Blink can't pass through closed walls into an annex. */
@@ -600,7 +601,33 @@ export class RoomLevel {
       else if (!this.entities.has('door_' + ha.side)) o = `Conjure a door on the ${SIDE_NAMES[ha.side]} wall.`;
       else o = 'Open the door and GO TO HELL! (Shoes recommended.)';
     }
-    if (o !== this._obj) { this._obj = o; ui.setObjective(o); }
+    if (o !== this._obj) { this._obj = o; this._objT = 0; this._hintN = 0; ui.setObjective(o); }
+  }
+
+  // gentle hints that only appear when you've been stuck on the same goal for a while
+  stuckHint(dt) {
+    if (!this.engine.hintsOn || !['normal', 'hard', 'ngplus', 'daily'].includes(this.state.mode) || ui.isDialogOpen()) return;
+    this._objT = (this._objT || 0) + dt;
+    const wait = this._hintN ? 120 : 75;
+    if (this._objT < wait) return;
+    this._objT = 0;
+    const s = this.state, fl = s.flags, n = this._hintN++;
+    let h;
+    if (!s.lamp) h = 'The lamp is the first thing in your spellbook (Q). Pick it and cast — it lands right in your hands.';
+    else if (s.lamp !== 'hand') h = 'Look at your lamp and press E to pick it up.';
+    else if (!s.lampOn) h = 'Press F to switch the lamp on.';
+    else if (!fl.hellKeyTaken && !fl.showKey && !fl.pcWon) h = [
+      'Conjure a Bookshelf and read the books on it (look at it, press E). They know things.',
+      'A PC is fragile. Conjure a Cushion first, then drop the PC onto the very same spot.',
+      'Use the PC once it\'s running. It challenges you to a game, and it hates losing.',
+    ][Math.min(n, 2)];
+    else if (!fl.hellKeyTaken && !fl.showKey) h = 'Stand on the spot the PC told you about and press G to search the floor.';
+    else if (!fl.hellKeyTaken) h = 'Something made of glass: conjure the Showcase, then use it (E) with the key.';
+    else if (!fl.nailKnown) h = 'Walk up to the showcase and look closely at the fossil inside (E).';
+    else if (!this.annexOfType('hell')) h = 'Open the spellbook: Hell is in the "Beyond" section. Face a wall and cast.';
+    else if (!this.entities.has('door_' + this.annexOfType('hell').side)) h = 'Face the wall with Hell behind it and conjure a Door on it.';
+    else h = s.shoes !== 'shoes' ? 'Through the door! But Hell\'s floor is hot — conjure a Shoe Rack and put on shoes first.' : 'Through the door — and good luck.';
+    ui.log('💡 ' + h, 'lore');
   }
 
   refreshHUD() {

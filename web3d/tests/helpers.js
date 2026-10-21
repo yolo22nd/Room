@@ -1,15 +1,16 @@
 import { expect } from '@playwright/test';
 
 /** Low quality, no audio, and an optional save/editor state injected before load. */
-export async function boot(page, { save = null, editor = null, hash = '' } = {}) {
+export async function boot(page, { save = null, editor = null, hash = '', firstRun = false } = {}) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.addInitScript(([save, editor]) => {
+  await page.addInitScript(([save, editor, firstRun]) => {
     localStorage.clear();
+    if (!firstRun) localStorage.setItem('room3d.onboard.v1', '1'); // skip the first-game controls card
     localStorage.setItem('room3d.settings.v1', JSON.stringify({ quality: 'low', music: 0, sfx: 0, autoRes: false }));
     if (save) localStorage.setItem('room3d.save.v1', JSON.stringify(save));
     if (editor) localStorage.setItem('room3d.editor.v1', JSON.stringify(editor));
-  }, [save, editor]);
+  }, [save, editor, firstRun]);
   await page.goto('/' + hash);
   await expect(page.locator('#screen .title-wrap h1')).toHaveText('ROOM');
   return errors;
