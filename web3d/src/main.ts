@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { applyLook } from './look';
+import { loadAssets, modelIds, animated } from './assets';
 
 // subtle film grain + lens vignette + per-area colour grade, applied after tone mapping
 const GrainShader = {
@@ -1366,7 +1367,9 @@ function frame() {
 // key X drops the lamp
 
 // debug / test hook (used by automated playtests)
-(window as any).__room = { Peer, enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState };
+(window as any).__room = { Peer, enterPhoto, exitPhoto, engine, ui, input, newGame, continueGame, showTitle, startRoom, freshRoomState, loadAssets, modelIds, animated };
+// real models, if any are installed (public/models/manifest.json); the game never waits on them
+loadAssets();
 
 initPhoto();
 showTitle();

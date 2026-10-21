@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { modelFor } from './assets';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { screenCanvas, woodGrain, weave, plaid, bookSpines } from './textures';
@@ -710,8 +711,13 @@ export function buildJunk(type) {
   return g;
 }
 
+// furniture that may be replaced by a real model (see assets.ts); the rest have
+// moving parts or screens the game drives, so they stay procedural
+const SWAPPABLE = new Set(['cushion', 'bed', 'sofa', 'chair', 'table', 'dine', 'shelf', 'closet', 'shoerack']);
+
 export function buildObject(type) {
-  const g = builders[type]();
+  const real = SWAPPABLE.has(type) ? modelFor('furniture/' + type, CATALOG[type].fp as [number, number]) : null;
+  const g = real || builders[type]();
   g.userData.type = type;
   g.traverse((o: any) => { if (o.isMesh) o.userData.owner = type; });
   return g;
