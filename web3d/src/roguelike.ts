@@ -37,7 +37,9 @@ const PALETTES = [0x2a2040, 0x203040, 0x302018, 0x183028, 0x40202a, 0x2a2a2a];
 export class RogueRoom extends ChamberLevel {
   constructor(engine, state, run) {
     const rnd = seededRandom(run.seed + ':' + run.depth);
-    const kind = run.depth === 0 ? 'runes' : KINDS[Math.floor(rnd() * KINDS.length)];
+    // memory runes join the pool from room 3
+    const pool = run.depth >= 2 ? [...KINDS, 'memory'] : KINDS;
+    const kind = run.forceKind || (run.depth === 0 ? 'runes' : pool[Math.floor(rnd() * pool.length)]);
     const big = run.depth >= 4 && rnd() < 0.5;
     // from room 4 on, rooms may roll a modifier
     const mod = run.depth >= 3 ? ['none', 'none', 'dark', 'cramped', 'stormy'][Math.floor(rnd() * 5)] : 'none';
@@ -65,11 +67,11 @@ export class RogueRoom extends ChamberLevel {
     this.freeCells = cells.filter(c => this.cellKey(c) !== startKey).sort(() => rnd() - 0.5);
     // deeper rooms keep growing: past room 8 a fifth rune or a fourth plate
     const n = Math.min(2 + Math.floor(run.depth / 2), (kind === 'plates' ? 3 : 4) + (run.depth >= 8 ? 1 : 0));
-    if (kind === 'runes' || kind === 'upside') this.setupRunes(n);
+    if (kind === 'runes' || kind === 'upside' || kind === 'memory') this.setupRunes(n);
     if (kind === 'hunt') this.setupHunt(Math.min(3 + run.depth, this.freeCells.length - 1, FLOOR().length));
     if (kind === 'plates') this.setupPlates(n);
     const modText = { dark: ' It is very dark in here.', cramped: ' It is very cramped.', stormy: ' The ceiling is in a terrible mood.' }[mod] || '';
-    this.intro = { runes: 'Floor runes: conjure what each rune shows, onto it.', upside: 'Upside runes: gravity is reversed. Match the ceiling.', hunt: 'Key hunt: the key hides in one piece of furniture. Search next to them (G). Wrong guesses anger the ceiling.', plates: 'Pressure plates: drop something heavy enough onto every plate.' }[kind] + modText;
+    this.intro = { runes: 'Floor runes: conjure what each rune shows, onto it.', upside: 'Upside runes: gravity is reversed. Match the ceiling.', memory: 'Memory runes: look closely. They fade in a few seconds.', hunt: 'Key hunt: the key hides in one piece of furniture. Search next to them (G). Wrong guesses anger the ceiling.', plates: 'Pressure plates: drop something heavy enough onto every plate.' }[kind] + modText;
   }
 
   // ---------------------------------------------------------- puzzles
@@ -83,8 +85,22 @@ export class RogueRoom extends ChamberLevel {
       panel.rotation.x = up ? Math.PI / 2 : -Math.PI / 2;
       panel.position.set(p.x, up ? this.cfg.h - 0.03 : 0.02, p.z);
       this.root.add(panel);
+      if (this.kind === 'memory') {
+        // a blank seal underneath; the picture fades away and you go from memory
+        const blank = runePanel(null, Math.min(1.4, this.cellSize().cw * 0.6), '?');
+        blank.rotation.x = -Math.PI / 2; blank.position.set(p.x, 0.012, p.z); this.root.add(blank);
+        panel.position.y = 0.03; panel.material.depthWrite = false;
+      }
       return { cell, type, done: false, panel };
     });
+    this.memT = 3 + n * 1.2;
+  }
+  peek() {
+    if (!this.exit.locked) return;
+    if (!this.engine.spend(25)) return;
+    this.memT = Math.max(this.memT, 1.8);
+    sfx.whoosh();
+    ui.log('You squint. The runes flicker back for a moment.', 'lore');
   }
   setupHunt(n) {
     const types = FLOOR().sort(() => this.rnd() - 0.5);
@@ -146,6 +162,7 @@ export class RogueRoom extends ChamberLevel {
 
   onAction(a) {
     if (a === 'search' && this.kind === 'hunt') this.huntSearch();
+    if (a === 'search' && this.kind === 'memory') this.peek();
   }
   huntSearch() {
     if (!this.exit.locked) return;
@@ -183,6 +200,11 @@ export class RogueRoom extends ChamberLevel {
 
   updateChamber(dt) {
     if (this.phase !== 'play') return;
+    if (this.kind === 'memory') {
+      this.memT -= dt;
+      const a = Math.max(0, Math.min(1, this.memT));
+      for (const r of this.runes) { const o = r.done ? 1 : a; r.panel.material.opacity = o; r.panel.visible = o > 0.01; }
+    }
     // more pumpkins the deeper you go
     if (this.run.depth >= 2 && this.exit.locked) {
       this.hazardT -= dt;
@@ -215,6 +237,7 @@ export class RogueRoom extends ChamberLevel {
     const k = this.kind;
     if (!this.exit.locked) return 'Through the exit door!';
     if (k === 'runes' || k === 'upside') return `${k === 'upside' ? 'Ceiling' : 'Floor'} runes: conjure what each rune shows onto it (${this.runes.filter(r => r.done).length}/${this.runes.length}).`;
+    if (k === 'memory') return `Memory runes: conjure what each rune showed onto it (${this.runes.filter(r => r.done).length}/${this.runes.length}). Peek (${this.engine.touch ? 'Peek button' : 'G'}) costs 25 mana.`;
     if (k === 'hunt') return `Find the key: search next to furniture (G). ${this.searched.size} searched.`;
     return `Weigh down every plate: ${this.plates.filter(p => p.done).length}/${this.plates.length}. Heavier furniture counts more.`;
   }

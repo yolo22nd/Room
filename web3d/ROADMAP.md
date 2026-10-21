@@ -42,4 +42,5 @@ Decisions (from the planning Q&A):
    - ✅ phone layout audit (16 fixes: touch controls, photo mode lighting, dialogs, HUD contrast)
    - ✅ bot playtest: 3,200 generated endless rooms checked solvable; lesson, boss and endless balance fixes
    - ✅ three new achievements (45 total)
-   - next: more secrets, more endless room kinds, docs screenshots
+   - ✅ memory runes: a fifth endless room kind
+   - next: more secrets, docs screenshots

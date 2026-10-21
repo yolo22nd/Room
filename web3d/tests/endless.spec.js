@@ -51,3 +51,22 @@ test('endless: clear a room, pick an upgrade, then die and see the leaderboard',
   await expect(page.locator('#screen h1')).toHaveText('Run over');
   await expect(page.locator('#screen .splits')).toContainText('1 rooms');
 });
+
+test('endless: memory runes fade, peek costs mana, solving from memory opens the exit', async ({ page }) => {
+  await boot(page);
+  await page.click('#t-endless');
+  await page.click('button:has-text("New run")');
+  await page.waitForFunction(() => window.__room.engine.level && window.__room.engine.run);
+  await page.evaluate(() => { const e = window.__room.engine; e.run.depth = 3; e.run.forceKind = 'memory'; e.nextRunRoom(); });
+  await page.waitForFunction(() => window.__room.engine.level.kind === 'memory');
+  expect(await level(page, (L) => L.runes.every(r => r.panel.visible))).toBe(true);
+  await level(page, (L) => { L.memT = 0.2; L.hazardT = 999; });
+  await page.waitForFunction(() => window.__room.engine.level.runes.every(r => !r.panel.visible));
+  await expect(page.locator('#objective')).toContainText('Memory runes');
+  const before = await page.evaluate(() => window.__room.engine.roomState.mana);
+  await level(page, (L) => L.onAction('search'));
+  expect(await page.evaluate(() => window.__room.engine.roomState.mana)).toBeLessThan(before - 20);
+  await page.waitForFunction(() => window.__room.engine.level.runes.every(r => r.panel.visible));
+  await level(page, (L, R) => { R.engine.roomState.mana = 999; for (const r of L.runes) L.conjureInstant(r.type, r.cell); L.check(); });
+  await page.waitForFunction(() => !window.__room.engine.level.exit.locked);
+});
