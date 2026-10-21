@@ -19,6 +19,14 @@ npm run build      # static site in dist/ (works from any sub-path, e.g. GitHub 
 Built with [three.js](https://threejs.org), TypeScript and Vite. There are no asset files: every texture, model and
 sound is generated in code (canvas textures, primitive geometry, WebAudio synthesis).
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Title screen](docs/title.jpg) | ![The room, furnished](docs/room.jpg) |
+| ![The spellbook](docs/spellbook.jpg) | ![Kraken 2.0 in Hell](docs/hell.jpg) |
+| ![The Upside-Down Room](docs/upside.jpg) | ![Endless: memory runes](docs/memory.jpg) |
+
 ## How it plays
 
 **Act 1 — The Room.** You start in total darkness, too scared to move. Open the spellbook and conjure

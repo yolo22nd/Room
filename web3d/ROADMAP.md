@@ -43,4 +43,5 @@ Decisions (from the planning Q&A):
    - ✅ bot playtest: 3,200 generated endless rooms checked solvable; lesson, boss and endless balance fixes
    - ✅ three new achievements (45 total)
    - ✅ memory runes: a fifth endless room kind
-   - next: more secrets, docs screenshots
+   - ✅ README screenshots
+   - next: more secrets
