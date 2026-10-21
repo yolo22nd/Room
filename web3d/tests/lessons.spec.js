@@ -42,7 +42,7 @@ test('lesson 3: the tower turns; jamming it aligned lets you cross', async ({ pa
   await boot(page, { save: lessonSave('clockwork') });
   await page.click('#t-continue');
   await page.waitForFunction(() => window.__room.engine.level && window.__room.engine.level.pendulums);
-  await page.waitForFunction(() => window.__room.engine.level.k >= 1, null, { timeout: 60_000 }); // it turned at least once
+  await page.waitForFunction(() => window.__room.engine.level.k >= 2, null, { timeout: 60_000 }); // it turned at least once
   await page.waitForFunction(() => window.__room.engine.level.aligned(), null, { timeout: 90_000 });
   await level(page, (L, R) => { R.engine.roomState.mana = 999; L.turnT = -999; L.conjure('chair', [1, 1]); });
   await page.waitForFunction(() => window.__room.engine.level.jammed);
@@ -56,4 +56,6 @@ test('lesson 3: the tower turns; jamming it aligned lets you cross', async ({ pa
   await page.waitForSelector('#screen .story', { timeout: 20_000 });
   await advanceStory(page, 6);
   await expect(page.locator('#screen h1')).toHaveText('Three for Three');
+  // jammed on the first alignment, never kicked loose
+  expect(await page.evaluate(() => localStorage.getItem('room3d.achievements.v1'))).toContain('clockwork');
 });

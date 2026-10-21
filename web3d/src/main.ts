@@ -260,6 +260,7 @@ const engine: any = {
     sfx.win();
     if (r.depth === 5) unlock('rogue5');
     if (r.depth === 10) unlock('rogue10');
+    if (r.depth === 15) unlock('rogue15');
     releaseLock();
     const rnd = seededRandom(r.seed + ':up:' + r.depth);
     const offer = UPGRADES.filter(u => !(u.id === 'nose' && r.nose) && !(u.id === 'umbrella' && r.umbrella) && !(u.id === 'heal' && r.hearts >= r.maxHearts)).sort(() => rnd() - 0.5).slice(0, 3);

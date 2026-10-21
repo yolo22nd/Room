@@ -185,6 +185,7 @@ export class LibraryLevel extends ChamberLevel {
     if (done && this.player.pos.y + this.player.height > this.cfg.h - 0.7 && Math.hypot(this.player.pos.x, this.player.pos.z) < 1.8) {
       this.phase = 'done';
       sfx.win();
+      if (this.time < 120) unlock('speedreader');
       setTimeout(() => { if (this.engine.level === this) this.engine.chapterDone(this.chapterId); }, 400);
     } else if (!done && this.water > this.cfg.h - 0.6) {
       ui.log('The water reaches the ceiling...', 'warn');
@@ -298,7 +299,7 @@ export class ClockworkLevel extends ChamberLevel {
     if (!this.jammed) return;
     this.removeObject(this.jammed);
     this.usables = this.usables.filter(m => m.userData.use && m.userData.use.label !== 'Kick it out of the gears');
-    this.jammed = null;
+    this.jammed = null; this.kicked = true;
     ui.log('You kick it free. The gears groan back into motion.');
     this.refreshHUD();
   }
@@ -345,6 +346,7 @@ export class ClockworkLevel extends ChamberLevel {
     this.goal.rotation.y += dt;
     if (this.phase === 'play' && this.player.pos.z < -16.4 && Math.abs(this.player.pos.x) < 2) {
       this.phase = 'done'; sfx.win();
+      if (this.k === 4 && !this.kicked) unlock('clockwork');
       setTimeout(() => { if (this.engine.level === this) this.engine.chapterDone(this.chapterId); }, 400);
     }
     // falling off the bridge isn't possible (walkable), but the door can open onto air
