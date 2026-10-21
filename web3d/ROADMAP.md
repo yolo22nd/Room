@@ -57,7 +57,7 @@ Decisions (from the planning Q&A):
 
 ✅ 15. **Act 5: Checkout Time** — the Room itself as the final boss (stomps, rebel furniture, closing walls, real/fake eyes, lights out)
 ✅ 16. **Cat companion** — follows you, naps on furniture, hisses near secrets, can be petted
-17. **Ember coins + shop** — earn in every mode, spend on cosmetics
+✅ 17. **Ember coins + shop** — earn in every mode, spend on cosmetics
 18. **Sound and music** — new themes for lessons, endless, boss rush, Act 5 and the title; health-reactive music
 19. **Tutorial + onboarding** — gentle first minutes, hints when stuck, skippable controls card
 

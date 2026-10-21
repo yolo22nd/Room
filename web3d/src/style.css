@@ -447,3 +447,4 @@ button.btn .k { font-family: var(--display); background: rgba(0, 0, 0, .28); bor
 .ach, .chapter { border-radius: 14px; }
 .chapter .num { font-family: var(--display); font-weight: 700; }
 .ph-chip { font-family: var(--display); }
+.spell.on { border-color: #ffd36a; box-shadow: 0 3px 0 #120c1c, 0 0 0 2px rgba(255, 211, 106, .35); }

@@ -92,6 +92,9 @@ beating the Kraken).
 **The cat.** Summon a familiar from the spellbook. It follows you through the room, the lessons, endless and
 co-op, naps on soft furniture, stares at secrets you haven't found, and can be petted. It judges you.
 
+**Ember coins and the shop.** Escapes, bosses, lessons, endless rooms and achievements pay ember coins;
+spend them on lantern flames (Witchfire, Frost, Rose, Void, Rainbow) and cat coats.
+
 **Photo mode** (V): freeze the game, fly the camera, apply film filters, save a PNG.
 
 **Room editor.** Build your own escape room, hide the key in a piece of furniture, pick an exit door, add a
@@ -122,7 +125,7 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 ## Features
 
 - Autosave, with checkpoints at the gate of Hell and at the start of the rematch; Continue from the title screen
-- 54 achievements, stored in the browser
+- 55 achievements, stored in the browser
 - Real physics (Rapier, loaded on first use): junk spells (crate, beach ball, anvil) that stack and tumble;
   furniture that misses in Hell tumbles, gets blasted by slams and can roll into the lava
 - Installable PWA with offline play (production build), gamepad support

@@ -51,6 +51,7 @@ import { Peer } from './net';
 import { CoopLevel } from './coop';
 import { RoomBossLevel } from './roomboss';
 import { Cat, catAdopted, catSettings, saveCat } from './cat';
+import { SHOP, PAY, coins, owned, earn, buy, equip, equipped, onCoins } from './shop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 import { setIntensity, setSurface } from './audio';
@@ -248,6 +249,7 @@ const engine: any = {
     sfx.win();
   },
   coopDone() {
+    earn(PAY.coop, 'co-op');
     unlock('coop');
     this.mode = 'title';
     releaseLock(); ui.showHUD(false); ui.setTimer(null);
@@ -286,6 +288,7 @@ const engine: any = {
     const r = this.run;
     r.hearts = this.roomState.hearts;
     r.depth++;
+    earn(PAY.room * (1 + Math.floor(r.depth / 5)), `room ${r.depth}`);
     sfx.win();
     if (r.depth === 5) unlock('rogue5');
     if (r.depth === 10) unlock('rogue10');
@@ -351,6 +354,7 @@ const engine: any = {
   },
 
   rushDone() {
+    earn(PAY.rush, 'boss rush');
     this.split('Witch');
     this.rush = null;
     this.mode = 'title';
@@ -525,7 +529,9 @@ const engine: any = {
   },
 
   async ending() {
+    earn(PAY.boss, 'Kraken 2.0');
     if (this.rush) { this.rushNext(); return; }
+    earn(PAY.escape, 'escaped the room');
     this.mode = 'transition';
     releaseLock();
     ui.flash('#ffffff', 1, 2000);
@@ -547,6 +553,7 @@ const engine: any = {
   },
 
   customWin() {
+    earn(PAY.custom, 'custom room');
     this.mode = 'transition';
     releaseLock();
     ui.flash('#fff4d0', 0.9, 1200);
@@ -596,6 +603,7 @@ const engine: any = {
   },
 
   async finale() {
+    earn(PAY.boss, 'the witch');
     if (this.rush) { this.rushDone(); return; }
     this.mode = 'transition';
     releaseLock();
@@ -639,6 +647,7 @@ const engine: any = {
   },
 
   chapterDone(id) {
+    earn(PAY.lesson, 'lesson passed');
     this.mode = 'transition';
     releaseLock();
     const done = new Set(lessonsDone()); done.add(id);
@@ -691,6 +700,7 @@ const engine: any = {
   },
 
   roomBossDone() {
+    earn(PAY.act5, 'the room let you go');
     this.mode = 'transition';
     releaseLock();
     markChapter('landlord');
@@ -727,7 +737,8 @@ ui.setAfterClose(() => setTimeout(() => {
   if (engine.mode === 'play' && !engine.paused && !ui.isDialogOpen() && screenHidden) requestLock();
 }, 0));
 
-setAchievementListener((a) => { ui.toast(`${a.icon} Achievement unlocked: <b>${a.name}</b>`, a.desc); sfx.achievement(); });
+setAchievementListener((a) => { ui.toast(`${a.icon} Achievement unlocked: <b>${a.name}</b>`, a.desc); sfx.achievement(); earn(PAY.achievement, 'achievement'); });
+onCoins((n, why) => { if (document.getElementById('hud') && !document.getElementById('hud').classList.contains('hidden')) ui.log(`+${n} 🪙 ember coins${why ? ' — ' + why : ''}`, 'good'); });
 
 // ---------------------------------------------------------------- screens
 let demo = null;
@@ -775,6 +786,7 @@ function showTitle() {
           ${tile('t-endless', '♾️', 'Endless')}
           ${tile('t-coop', '👥', 'Co-op')}
           ${tile('t-rush', '⚔️', 'Boss rush')}
+          ${tile('t-shop', '🪙', 'Shop', `${coins()}`)}
           ${tile('t-editor', '🛠️', 'Editor')}
           ${tile('t-ach', '🏆', 'Awards', `${unlockedCount()}/${ACHIEVEMENTS.length}`)}
           ${tile('t-endings', '🎬', 'Endings', `${seenEndings().length}/${ENDING_IDS.length}`)}
@@ -793,6 +805,7 @@ function showTitle() {
   on('t-endless', () => showEndless());
   on('t-coop', () => showCoop());
   on('t-rush', () => showRush());
+  on('t-shop', () => showShop());
   on('t-lessons', () => ui.dialog({
     title: 'Part 4: The Three Lessons',
     buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
@@ -1022,6 +1035,29 @@ function rushBoardHtml(mine = 0) {
   if (!b.length) return '';
   return `<table class="splits">${b.map((e, i) => `<tr${e.at === mine ? ' class="mine"' : ''}><td>#${i + 1} ⚔️</td><td>${'♥'.repeat(e.hearts)}</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
 }
+function showShop() {
+  const names = { flame: 'Lantern flames', cat: 'Cat coats' };
+  const html = Object.keys(SHOP).map(slot => `<div class="section-label">${names[slot]}</div><div class="spell-grid">${SHOP[slot].map(it => {
+    const own = owned(it.id), on = equipped(slot as any).id === it.id;
+    return `<button class="spell${on ? ' on' : ''}" data-slot="${slot}" data-id="${it.id}"><span class="ico">${it.icon}</span><span class="nm">${it.name}</span><span class="ty">${on ? 'equipped' : own ? 'owned · equip' : `🪙 ${it.price}`}</span></button>`;
+  }).join('')}</div>`).join('');
+  const box = ui.dialog({
+    title: `🪙 Shop · ${coins()} ember coins`,
+    html: `<p class="muted">Earn ember coins by escaping, beating bosses, passing lessons, clearing endless rooms and unlocking achievements.${catAdopted() ? '' : ' (Cat coats apply once you summon the cat.)'}</p>${html}`,
+    buttons: [{ label: 'Back' }],
+  });
+  box.querySelectorAll<any>('[data-id]').forEach(b => b.addEventListener('click', () => {
+    const slot = b.dataset.slot, id = b.dataset.id;
+    if (owned(id)) { equip(slot, id); sfx.click(); }
+    else {
+      const r = buy(slot, id);
+      if (r === 'poor') { sfx.locked(); ui.toast('Not enough ember coins', 'Go escape something.'); return; }
+      sfx.coin(); unlock('shopper');
+    }
+    showShop();
+  }));
+}
+
 function showRush() {
   const open = chaptersDone().includes('hell');
   ui.dialog({

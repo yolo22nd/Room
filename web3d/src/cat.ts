@@ -4,6 +4,7 @@ import * as ui from './ui';
 import { sfx } from './audio';
 import { unlock } from './save';
 import { animated } from './assets';
+import { equipped } from './shop';
 
 // The cat familiar: follows you around, naps on soft furniture, stares at
 // secrets, can be petted, and has opinions.
@@ -17,8 +18,9 @@ const JUDGE_LINES = ['The cat watches you get hurt. It does not blink.', 'Somewh
 
 function catModel() {
   const g = new THREE.Group();
-  const fur = new THREE.MeshStandardMaterial({ color: 0xb8692a, roughness: 0.95 });
-  const pale = new THREE.MeshStandardMaterial({ color: 0xd8c4a4, roughness: 0.95 });
+  const coat = equipped('cat');
+  const fur = new THREE.MeshStandardMaterial({ color: coat.fur, roughness: 0.95, emissive: coat.glow ? 0x6a1800 : 0x000000 });
+  const pale = new THREE.MeshStandardMaterial({ color: coat.pale, roughness: 0.95 });
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.26, 4, 10), fur);
   body.rotation.x = Math.PI / 2; body.position.y = 0.2; g.add(body);
   const belly = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pale); belly.scale.set(0.9, 0.7, 1.6); belly.position.set(0, 0.15, 0); g.add(belly);

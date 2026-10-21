@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { equipped } from './shop';
 import { COL } from './a11y';
 import {
   Room, CELLS, SIDES, SIDE_NAMES, CELL_NAMES, cellCenter, cellAt, sideMatrix, sideRot,
@@ -59,7 +60,15 @@ export class RoomLevel {
     this.lampLight.shadow.bias = -0.004;
     this.lampLight.position.set(0, 0.15, 0);
     this.lantern.add(this.lampLight);
-    // New Game+: a blue flame, so you know
+    // the lantern flame from the shop (New Game+ always burns blue, so you know)
+    const flame = equipped('flame');
+    this.flame = flame;
+    if (state.mode !== 'ngplus' && flame.id !== 'amber') {
+      this.lampLight.color.set(flame.color);
+      this.lantern.traverse((o: any) => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex()) o.material = o.material.clone(), o.material.emissive.set(flame.glass); });
+      this.lantern.userData.glass = null;
+      this.lantern.traverse((o: any) => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex() === flame.glass) this.lantern.userData.glass = o.material; });
+    }
     if (state.mode === 'ngplus') {
       this.lampLight.color.set(0x8ab8ff);
       this.lantern.traverse((o: any) => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex()) o.material = o.material.clone(), o.material.emissive.set(0x4a8aff); });
@@ -433,6 +442,10 @@ export class RoomLevel {
 
   update(dt) {
     this.time += dt;
+    if (this.flame && this.flame.rainbow && this.state.mode !== 'ngplus') {
+      this.lampLight.color.setHSL((this.time * 0.08) % 1, 0.75, 0.62);
+      if (this.lantern.userData.glass) this.lantern.userData.glass.emissive.copy(this.lampLight.color);
+    }
     this.updateDrops(dt);
     this.room.update(dt, this.time, this.camera.position);
     if (this.phys) {
