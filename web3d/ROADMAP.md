@@ -37,3 +37,9 @@ Decisions (from the planning Q&A):
    more SFX
 ✅ 9. **Mobile/perf polish**: profiling, instancing, LOD, adaptive resolution, 60 fps target on mid-range phones
 10. Overflow: bug bash, balance, docs, achievements, secrets
+   - ✅ code-review bug bash (18 fixes), three more secrets, void window and wall candles
+   - ✅ endless room modifiers (dark, cramped, stormy); deeper rooms keep growing past room 8
+   - ✅ phone layout audit (16 fixes: touch controls, photo mode lighting, dialogs, HUD contrast)
+   - ✅ bot playtest: 3,200 generated endless rooms checked solvable; lesson, boss and endless balance fixes
+   - ✅ three new achievements (45 total)
+   - next: more secrets, more endless room kinds, docs screenshots
