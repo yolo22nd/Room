@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { applyLook } from './look';
 
 // subtle film grain + lens vignette + per-area colour grade, applied after tone mapping
 const GrainShader = {
@@ -90,12 +91,26 @@ if (input.touch && !hasSavedSettings()) settings.quality = 'low';
 
 // ---------------------------------------------------------------- renderer
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false });
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 300);
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(new THREE.Scene(), camera);
+// High quality renders through N8AO instead (ambient occlusion: soft contact shadows),
+// loaded on first use so low quality never downloads it
+let aoPass: any = null, aoLoading = false;
+function ensureAO() {
+  if (aoPass || aoLoading) return;
+  aoLoading = true;
+  import('n8ao').then(({ N8AOPass }) => {
+    aoPass = new N8AOPass(renderPass.scene, camera, 512, 512);
+    Object.assign(aoPass.configuration, { aoRadius: 1.1, distanceFalloff: 0.7, intensity: 2.4, halfRes: true, gammaCorrection: false, color: new THREE.Color(0x0a0408) });
+    composer.insertPass(aoPass, 1);
+    applyQuality();
+  }).catch(() => { aoLoading = false; });
+}
+function setScene(s) { renderPass.scene = s; if (aoPass) aoPass.scene = s; }
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 0.82);
 const grain = new ShaderPass(GrainShader);
 composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(new OutputPass()); composer.addPass(grain);
@@ -119,6 +134,8 @@ function applyQuality() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 2 : 1) * resScale);
   renderer.shadowMap.enabled = high;
   bloom.enabled = high;
+  if (high) ensureAO();
+  if (aoPass) { aoPass.enabled = high; renderPass.enabled = !high; } else renderPass.enabled = true;
   grain.enabled = high;
   resize();
 }
@@ -389,12 +406,13 @@ const engine: any = {
     if (demo) { demo.deactivate(); demo = null; }
     if (this.level) this.level.deactivate();
     this.level = level;
-    renderPass.scene = level.scene;
+    setScene(level.scene);
     level.activate();
     this.refreshTouchButtons();
     this.spawnCat();
     // colour grade per area: [tint r, g, b, saturation, contrast]
-    const name = level.chapterId || (level instanceof RoomLevel ? 'room' : level instanceof HellLevel ? 'hell' : level instanceof WitchLevel ? 'witch' : '');
+    const name = level.chapterId || (level instanceof RoomLevel ? 'room' : level instanceof HellLevel ? 'hell' : level instanceof WitchLevel ? 'witch' : level instanceof RoomBossLevel ? 'landlord' : '');
+    applyLook(renderer, level.scene, name);
     const G = { room: [1.02, 0.99, 0.95, 1.03, 1.02], hell: [1.08, 0.94, 0.86, 1.15, 1.1], witch: [0.94, 0.96, 1.1, 1.08, 1.05], upside: [1.0, 0.94, 1.1, 1.1, 1.05], library: [0.92, 1.03, 1.08, 1.05, 1.03], clockwork: [1.07, 1.0, 0.88, 1.0, 1.08] }[name] || [1, 1, 1, 1.04, 1.03];
     grain.uniforms.tint.value.set(G[0], G[1], G[2]); grain.uniforms.sat.value = G[3]; grain.uniforms.contrast.value = G[4];
   },
@@ -728,7 +746,7 @@ function showTitle() {
   if (engine.level) engine.level.deactivate();
   if (demo) demo.deactivate();
   demo = buildDemo(); engine.level = null;
-  renderPass.scene = demo.scene; demo.scene.add(camera);
+  setScene(demo.scene); demo.scene.add(camera); applyLook(renderer, demo.scene, 'room');
   demo.refreshLighting(); setHeartbeat(0); ui.setVignette('');
   const cont = hasSave();
   const code = roomCodeFromHash();
@@ -1312,7 +1330,7 @@ function frame() {
     camera.position.set(Math.sin(titleT) * 3.2, 1.9, Math.cos(titleT) * 3.2);
     camera.lookAt(0, 0.9, 0);
     demo.room.update(dt, titleT * 12, camera.position);
-    renderPass.scene = demo.scene;
+    setScene(demo.scene);
   } else if (engine.level) {
     if (playing) {
       engine.stats.time += dt;
