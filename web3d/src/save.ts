@@ -74,6 +74,8 @@ export const ACHIEVEMENTS = [
   { id: 'rogue15', icon: '🕳️', name: 'Abyssal Landlord', desc: 'Clear 15 rooms in one endless run.' },
   { id: 'clockwork', icon: '⚙️', name: 'Nobody Manages the Tower', desc: 'Jam the Clockwork Tower the first time the door faces the bridge, and cross.' },
   { id: 'speedreader', icon: '📚', name: 'Speed Reader', desc: 'Escape the Flooded Library in under two minutes.' },
+  { id: 'knock', icon: '🪟', name: 'Hello Out There', desc: 'Knock three times on the window onto the void.' },
+  { id: 'xyzzy', icon: '🐚', name: 'Old Magic Word', desc: 'Say a magic word from an older adventure at the command line.' },
   { id: 'coop', icon: '👥', name: 'Better Together', desc: 'Escape the twin room in co-op.' },
   { id: 'portrait', icon: '🖼️', name: 'Her Eyes Follow You', desc: 'Stare at the witch\'s portrait in the dark.' },
   { id: 'rpsflawless', icon: '🎯', name: 'Smug No More', desc: 'Beat the PC 3–0.' },

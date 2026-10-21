@@ -44,4 +44,5 @@ Decisions (from the planning Q&A):
    - ✅ three new achievements (45 total)
    - ✅ memory runes: a fifth endless room kind
    - ✅ README screenshots
-   - next: more secrets
+   - ✅ two more secrets: knock on the void window, a magic word at the command line (47 achievements)
+   - next: keep polishing

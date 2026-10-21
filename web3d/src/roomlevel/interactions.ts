@@ -30,6 +30,22 @@ export const interactionsMethods = {
     if (fn) fn.call(this, f);
   },
 
+  // knock three times on the window onto the void
+  use_voidwindow(this: any) {
+    const now = performance.now();
+    this.knocks = now - (this.lastKnock || 0) < 1500 ? (this.knocks || 0) + 1 : 1;
+    this.lastKnock = now;
+    sfx.thud(0.4);
+    const lines = ['Knock. The void ripples politely.', 'Knock, knock. Something far away stops what it was doing.'];
+    if (this.knocks < 3) { ui.log(lines[this.knocks - 1]); return; }
+    this.knocks = 0;
+    sfx.win();
+    this.room.voidMat.color.set(0xffe0a0);
+    setTimeout(() => { if (this.room.voidMat) this.room.voidMat.color.set(0x8a70c0); }, 1200);
+    ui.log('Far out in the void, a tiny wizard in a tiny window knocks back three times, waves, and draws the curtains.', 'lore');
+    unlock('knock');
+  },
+
   menu(this: any, title, text, items) {
     ui.dialog({
       title, html: text ? `<p>${text}</p>` : '',

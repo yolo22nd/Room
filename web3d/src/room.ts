@@ -167,6 +167,7 @@ export class Room {
     this.voidMat = new THREE.MeshBasicMaterial({ map: voidTex, color: 0x8a70c0 });
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.45), this.voidMat);
     pane.position.set(wx, wy, 0.02); winGroup.add(pane);
+    pane.userData.owner = 'voidwindow'; this.voidPane = pane;
     this.voidTex = voidTex;
     const sill = box(1.7, 0.06, 0.25, frame, wx, wy - 0.82, 0.1, winGroup); sill.castShadow = false;
     const winLight = new THREE.PointLight(0x8a70ff, 1.2, 4, 2); winLight.position.set(wx, wy, 0.6); winGroup.add(winLight);

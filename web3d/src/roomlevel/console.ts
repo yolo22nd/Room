@@ -94,6 +94,9 @@ export const consoleMethods = {
       if (l && l !== 'hand' && this.player.pos.distanceTo(new THREE.Vector3(l.x, 0, l.z)) < 2) this.pickLamp(); else ui.log('You aren\'t close to anything you can pick up.');
     } else if (verb === 'key' || verb === 'help') {
       ui.log('create <thing> <direction> · go <direction> · locate · turn lamp · search · put / pick lamp · stand · end');
+    } else if (verb === 'xyzzy' || verb === 'plugh') {
+      ui.log('A hollow voice says "Fool." Then, after a pause: "...nice try, though. Wrong game, right spirit."', 'lore');
+      unlock('xyzzy');
     } else if (verb === 'end') {
       ui.log('Are you sure you want to end this simulation? (Use the pause menu to quit to title.)');
     } else if (['open', 'sit', 'sleep', 'turn', 'close', 'use'].includes(verb)) {
