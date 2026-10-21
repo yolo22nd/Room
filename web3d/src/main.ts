@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+// UI fonts, bundled (latin subsets load on demand)
+import '@fontsource/fredoka/latin-500.css';
+import '@fontsource/fredoka/latin-600.css';
+import '@fontsource/fredoka/latin-700.css';
+import '@fontsource/nunito/latin-400.css';
+import '@fontsource/nunito/latin-700.css';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';

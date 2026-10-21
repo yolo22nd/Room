@@ -313,7 +313,7 @@ export class RoomLevel {
     this.lantern.removeFromParent();
     if (l === 'hand') {
       this.camera.add(this.lantern);
-      this.lantern.position.set(0.3, -0.36, -0.62);
+      this.lantern.position.set(0.34, -0.4, -0.66);
       this.lantern.rotation.set(0, 0, 0);
       this.lantern.scale.setScalar(0.6);
       this.lantern.visible = true;
@@ -352,7 +352,7 @@ export class RoomLevel {
   refreshLighting() {
     const on = !!this.state.lamp && this.state.lampOn;
     this.lampLight.visible = on;
-    if (this.lantern.userData.glass) this.lantern.userData.glass.emissiveIntensity = on ? 2.2 : 0.05;
+    if (this.lantern.userData.glass) this.lantern.userData.glass.emissiveIntensity = on ? (this.state.lamp === 'hand' ? 0.85 : 2.2) : 0.05;
     this.hemi.intensity = on ? 0.35 : 0.06;
     this.room.setCandles(on);
     this.scene.fog.far = on ? 18 : 7;
@@ -454,7 +454,7 @@ export class RoomLevel {
     // lantern sway + flicker
     if (this.state.lamp === 'hand') {
       this.lantern.rotation.z = Math.sin(this.time * 2) * 0.05 + (this.player.moving ? Math.sin(this.player.bob) * 0.08 : 0);
-      this.lantern.position.y = -0.36 + (this.player.moving ? Math.abs(Math.sin(this.player.bob)) * 0.03 : 0);
+      this.lantern.position.y = -0.4 + (this.player.moving ? Math.abs(Math.sin(this.player.bob)) * 0.03 : 0);
     }
     if (this.lampLight.visible) this.lampLight.intensity = 14 + Math.sin(this.time * 13) * 0.4 + (Math.random() - 0.5) * 0.6;
 
