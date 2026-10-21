@@ -392,7 +392,7 @@ const engine: any = {
   // Lamp and Search only mean something in the room; elsewhere Search casts Shrink.
   refreshTouchButtons() {
     const lv = this.level, room = lv instanceof RoomLevel;
-    const searchLabel = room || (lv instanceof RogueRoom && lv.kind === 'hunt') ? 'Search' : lv instanceof RogueRoom && lv.kind === 'memory' ? 'Peek' : this.roomState && this.roomState.flags && knows(this.roomState, 'shrink') ? 'Shrink' : '';
+    const searchLabel = room || (lv instanceof RogueRoom && lv.kind === 'hunt') ? 'Search' : lv instanceof RogueRoom && lv.kind === 'memory' ? 'Peek' : lv instanceof RogueRoom && lv.kind === 'levers' ? 'Replay' : this.roomState && this.roomState.flags && knows(this.roomState, 'shrink') ? 'Shrink' : '';
     document.querySelectorAll<any>('#touch-buttons .tbtn').forEach(b => {
       if (b.dataset.act === 'lamp') b.classList.toggle('hidden', !room);
       if (b.dataset.act === 'search') { b.classList.toggle('hidden', !searchLabel); if (searchLabel) b.textContent = searchLabel; }
@@ -987,7 +987,7 @@ function showEndless() {
   const today = loadRuns().filter(e => e.daily === todaySeed()).sort((a, b) => b.depth - a.depth)[0];
   ui.dialog({
     title: '♾️ Endless rooms',
-    html: `<p>Room after room, each one built from scratch: runes, upside-down runes, memory runes, key hunts and pressure plates. Pick an upgrade after every room. One life.</p>${leaderboardHtml()}`,
+    html: `<p>Room after room, each one built from scratch: runes (upside-down, memory, mirrored), lever sequences, key hunts, pressure plates and the odd treasure room. Pick an upgrade after every room. One life.</p>${leaderboardHtml()}`,
     buttons: [
       { label: '▶ New run', cls: 'primary', onClick: () => engine.startRun(false) },
       { label: `📅 Daily run ${todaySeed()}${today ? ` · best ${today.depth} rooms` : ''}`, onClick: () => engine.startRun(true) },

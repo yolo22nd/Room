@@ -14,7 +14,7 @@ test('endless: every generated room is solvable for many seeds and depths', asyn
       const run = { ...R.engine.run, seed: 'seed' + s, depth: d };
       const room = new RogueRoom(R.engine, R.engine.roomState, run);
       if (room.runes) {
-        const keys = room.runes.map(r => room.cellKey(r.cell));
+        const keys = room.runes.flatMap(r => r.target && room.cellKey(r.target) !== room.cellKey(r.cell) ? [room.cellKey(r.cell), room.cellKey(r.target)] : [room.cellKey(r.cell)]);
         if (new Set(keys).size !== keys.length) out.push(`dup rune cells ${s}/${d}`);
         const types = room.runes.map(r => r.type);
         if (new Set(types).size !== types.length) out.push(`dup rune types ${s}/${d}`);
@@ -69,4 +69,41 @@ test('endless: memory runes fade, peek costs mana, solving from memory opens the
   await page.waitForFunction(() => window.__room.engine.level.runes.every(r => r.panel.visible));
   await level(page, (L, R) => { R.engine.roomState.mana = 999; for (const r of L.runes) L.conjureInstant(r.type, r.cell); L.check(); });
   await page.waitForFunction(() => !window.__room.engine.level.exit.locked);
+});
+
+async function forceRoom(page, kind, depth = 4) {
+  await page.evaluate(([kind, depth]) => { const e = window.__room.engine; e.run.depth = depth; e.run.forceKind = kind; e.nextRunRoom(); e.level.hazardT = 999; }, [kind, depth]);
+  await page.waitForFunction((kind) => window.__room.engine.level.kind === kind, kind);
+}
+
+test('endless: mirror runes, lever sequences and treasure chests', async ({ page }) => {
+  const errors = await boot(page);
+  await page.click('#t-endless');
+  await page.click('button:has-text("New run")');
+  await page.waitForFunction(() => window.__room.engine.level && window.__room.engine.run);
+  // mirror: targets are the left-right mirror cells, distinct and never the start cell
+  for (const depth of [3, 5, 8]) {
+    await forceRoom(page, 'mirror', depth);
+    const bad = await level(page, (L) => L.runes.filter(r => r.target[0] !== L.cfg.cols - 1 - r.cell[0] || r.target[1] !== r.cell[1]).length);
+    expect(bad).toBe(0);
+    // furniture on the rune itself does not count; on the mirrored cell it does
+    await level(page, (L, R) => { R.engine.roomState.mana = 999; const r = L.runes[0]; L.conjureInstant(r.type, r.cell); L.check(); });
+    expect(await level(page, (L) => L.runes[0].done)).toBe(false);
+    await level(page, (L) => { L.objects.clear(); for (const r of L.runes) L.conjureInstant(r.type, r.target); L.check(); });
+    await page.waitForFunction(() => !window.__room.engine.level.exit.locked);
+  }
+  // levers: wrong order resets, the shown order opens the exit
+  await forceRoom(page, 'levers', 6);
+  await page.waitForFunction(() => !window.__room.engine.level.seqOn, null, { timeout: 30_000 });
+  await level(page, (L) => { const wrong = L.levers.find(l => l.i !== L.seq[0]); L.pullLever(wrong); });
+  expect(await level(page, (L) => L.progress)).toBe(0);
+  await level(page, (L) => { for (const i of L.seq) L.pullLever(L.levers[i]); });
+  await page.waitForFunction(() => !window.__room.engine.level.exit.locked);
+  // treasure: the chest grants an upgrade
+  await forceRoom(page, 'treasure', 5);
+  const n0 = await page.evaluate(() => window.__room.engine.run.upgrades.length);
+  await level(page, (L) => L.openChest());
+  expect(await page.evaluate(() => window.__room.engine.run.upgrades.length)).toBe(n0 + 1);
+  await expect(page.locator('#objective')).toContainText('exit');
+  expect(errors).toEqual([]);
 });

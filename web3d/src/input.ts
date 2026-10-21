@@ -75,7 +75,8 @@ export function initInput(canvas) {
   document.addEventListener('pointerlockchange', () => {
     input.locked = document.pointerLockElement === canvasEl;
     lockT = performance.now();
-    if (!input.locked && input.enabled && !input.touch) input.actions.push('unlocked');
+    if (!input.locked && input.enabled && !input.touch && !selfRelease) input.actions.push('unlocked');
+    if (!input.locked) selfRelease = false;
   });
 
   if (input.touch) initTouch(canvas);
@@ -88,8 +89,11 @@ export function requestLock() {
     if (p && p.catch) p.catch(() => {});
   } catch (e) { /* not available */ }
 }
+// set when the game lets go of the mouse itself, so the late pointerlockchange
+// event isn't mistaken for the player pressing Esc (which pauses)
+let selfRelease = false;
 export function releaseLock() {
-  if (document.pointerLockElement) document.exitPointerLock();
+  if (document.pointerLockElement) { selfRelease = true; document.exitPointerLock(); }
 }
 
 export function consumeActions() { const a = input.actions; input.actions = []; return a; }

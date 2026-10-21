@@ -76,7 +76,7 @@ read-aloud narration.
 **Mana and spells.** Conjuring costs mana from a regenerating pool. Learn Levitate (move furniture), Shrink
 (tiny for 10 s — there's a secret under the bed) and Blink (teleport) through side content.
 
-**Endless rooms.** A roguelike mode: procedurally generated rooms (floor runes, upside-down runes, memory runes, key hunts,
+**Endless rooms.** A roguelike mode: procedurally generated rooms (floor runes, upside-down runes, memory and mirror runes, lever sequences, key hunts, rare treasure rooms,
 pressure plates), upgrades between rooms, one life, a local leaderboard and a date-seeded daily run.
 
 **Co-op.** Two players, peer-to-peer over WebRTC with copy-paste invite codes — no server. Solve the Twin Room
