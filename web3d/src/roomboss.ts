@@ -74,7 +74,7 @@ export class RoomBossLevel extends BossLevel {
     this.camera.add(this.lamp);
     this.player.place(0, 3, 0);
     this.player.speed = 4.2;
-    playAmbience('hell');
+    playAmbience('landlord');
     ui.setVignette('');
     this.refreshHUD();
     ui.log('The floor has eyes now. Drop furniture on an OPEN eye. Dodge the ceiling.', 'lore');

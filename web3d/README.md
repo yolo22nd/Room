@@ -135,7 +135,8 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
   FPS counter, speedrun timer
 - Accessibility: remappable keys, sound captions, reduced motion, colour-blind safe telegraphs, text size,
   optional narration
-- Dynamic music that reacts to danger; surface-aware footsteps
+- Dynamic music that reacts to danger, with its own theme for the title, the lessons, endless, the boss rush and
+  Act 5, and goes muffled on your last heart; surface-aware footsteps
 - Adaptive resolution and instanced rendering for phones
 - Touch controls are switched on automatically on phones and tablets
 

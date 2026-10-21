@@ -4,7 +4,7 @@ let ctx = null;
 let capHook: (t: string) => void = () => {};
 export function setCaptionHook(fn) { capHook = fn; }
 const cap = (t) => capHook(t);
-let master, musicBus, sfxBus;
+let master, musicBus, sfxBus, muffle;
 let noiseBuf = null;
 let ambience = null;
 let heartbeatTimer = 0;
@@ -21,7 +21,9 @@ export function initAudio() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
-  musicBus = ctx.createGain(); musicBus.gain.value = settings.music; musicBus.connect(master);
+  // music runs through a low-pass that closes in when you're on your last heart
+  muffle = ctx.createBiquadFilter(); muffle.type = 'lowpass'; muffle.frequency.value = 18000; muffle.connect(master);
+  musicBus = ctx.createGain(); musicBus.gain.value = settings.music; musicBus.connect(muffle);
   sfxBus = ctx.createGain(); sfxBus.gain.value = settings.sfx; sfxBus.connect(master);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0);
@@ -209,6 +211,74 @@ export function playAmbience(kind) {
       filt.frequency.setTargetAtTime(1400 + intensity * 1800, ctx.currentTime, 0.4);
       i++;
     }, 220);
+  } else if (kind === 'title') {
+    // a gentle theme: Am - F - C - G, arpeggiated, with a bell on top
+    filt.frequency.value = 1800;
+    nodes.push(...pad(out, [55, 82.4, 110], 'sine', 5, 0.05));
+    const chords = [[220, 261.6, 329.6], [174.6, 220, 261.6], [130.8, 164.8, 196], [196, 246.9, 293.7]];
+    let i = 0;
+    timer = setInterval(() => {
+      const c = chords[Math.floor(i / 8) % 4];
+      tone(c[i % 3] * (i % 8 < 4 ? 1 : 2), 0.9, { type: 'triangle', vol: 0.03, attack: 0.01, bus: musicBus });
+      if (i % 8 === 0) tone(c[0] / 2, 2.6, { type: 'sine', vol: 0.08, attack: 0.05, bus: musicBus });
+      if (i % 16 === 6) tone(c[2] * 4, 1.8, { type: 'sine', vol: 0.02, attack: 0.01, bus: musicBus });
+      i++;
+    }, 330);
+  } else if (kind === 'lesson') {
+    // the witch's classroom: plucky pizzicato in a major key, a little sneaky
+    filt.frequency.value = 2200;
+    nodes.push(...pad(out, [98, 146.8], 'triangle', 4, 0.025));
+    const line = [392, 0, 493.9, 587.3, 0, 493.9, 440, 0, 392, 369.9, 392, 0, 293.7, 0, 329.6, 369.9];
+    let i = 0;
+    timer = setInterval(() => {
+      const n = line[i % line.length];
+      if (n) tone(n, 0.16, { type: 'triangle', vol: 0.04, attack: 0.003, bus: musicBus });
+      if (i % 4 === 0) tone([98, 98, 130.8, 146.8][Math.floor(i / 4) % 4], 0.3, { type: 'sine', vol: 0.12, slide: 0.9, bus: musicBus });
+      if (i % 8 === 7 && Math.random() < 0.5) tone(n * 2 || 784, 0.6, { type: 'sine', vol: 0.02, bus: musicBus });
+      filt.frequency.setTargetAtTime(2200 + intensity * 1500, ctx.currentTime, 0.4);
+      i++;
+    }, 240);
+  } else if (kind === 'endless') {
+    // a driving minor arpeggio that speeds up with danger
+    filt.frequency.value = 1200;
+    nodes.push(...pad(out, [55, 65.4], 'sawtooth', 8, 0.02));
+    const arp = [220, 261.6, 329.6, 261.6, 196, 246.9, 293.7, 246.9];
+    let i = 0, acc = 0;
+    timer = setInterval(() => {
+      acc += 1 + intensity * 0.8;
+      if (acc < 1.6) return;
+      acc -= 1.6;
+      tone(arp[i % arp.length], 0.14, { type: 'square', vol: 0.02, bus: musicBus });
+      if (i % 4 === 0) tone(55, 0.25, { type: 'sine', vol: 0.18, slide: 0.6, bus: musicBus });
+      if (i % 2 === 1) noise(0.04, { vol: 0.03, freq: 6000, type: 'highpass' });
+      filt.frequency.setTargetAtTime(1200 + intensity * 2000, ctx.currentTime, 0.3);
+      i++;
+    }, 100);
+  } else if (kind === 'rush') {
+    // the boss rush: double-time war drums and brass stabs
+    filt.frequency.value = 1600;
+    nodes.push(...pad(out, [36.7, 55], 'sawtooth', 9, 0.03));
+    let beat = 0;
+    timer = setInterval(() => {
+      if (beat % 2 === 0 || beat % 8 === 7) tone(70, 0.25, { type: 'sine', vol: 0.22, slide: 0.5, bus: musicBus });
+      if (beat % 4 === 2) noise(0.12, { vol: 0.07, freq: 1800, type: 'highpass' });
+      if (beat % 16 === 0 || beat % 16 === 3) for (const f of [146.8, 220, 293.7]) tone(f, 0.35, { type: 'sawtooth', vol: 0.025, bus: musicBus });
+      if (beat % 16 === 8) for (const f of [138.6, 207.7, 277.2]) tone(f, 0.35, { type: 'sawtooth', vol: 0.025, bus: musicBus });
+      beat++;
+    }, 180);
+  } else if (kind === 'landlord') {
+    // the room itself: a wheezing house organ and a slow, heavy pulse
+    filt.frequency.value = 900;
+    nodes.push(...pad(out, [65.4, 77.8, 98, 116.5], 'square', 14, 0.012));
+    const chords = [[130.8, 155.6, 196], [123.5, 146.8, 185], [116.5, 138.6, 174.6], [110, 130.8, 164.8]];
+    let i = 0;
+    timer = setInterval(() => {
+      if (i % 8 === 0) for (const f of chords[Math.floor(i / 8) % 4]) tone(f, 2.4, { type: 'square', vol: 0.014, attack: 0.3, bus: musicBus });
+      if (i % 4 === 0 || (intensity > 0.6 && i % 2 === 0)) tone(45, 0.5, { type: 'sine', vol: 0.25, slide: 0.6, bus: musicBus });
+      if (i % 16 === 13) noise(0.8, { vol: 0.03, freq: 300, q: 4, type: 'bandpass', sweep: 0.5 });
+      filt.frequency.setTargetAtTime(900 + intensity * 1400, ctx.currentTime, 0.5);
+      i++;
+    }, 300);
   } else if (kind === 'ending') {
     nodes.push(...pad(out, [130.8, 164.8, 196, 246.9], 'triangle', 5, 0.03));
     const notes = [523.3, 659.3, 784, 987.8, 784, 659.3];
@@ -220,6 +290,14 @@ export function playAmbience(kind) {
 }
 
 export function setHeartbeat(rate) { heartbeatRate = rate; }
+
+/** 0 = healthy, 1 = one heart left: the music goes muffled and distant. */
+let lowHealth = -1;
+export function setLowHealth(v) {
+  if (!ctx || v === lowHealth) return;
+  lowHealth = v;
+  muffle.frequency.setTargetAtTime(v > 0 ? 900 : 18000, ctx.currentTime, 0.6);
+}
 
 export function updateAudio(dt) {
   if (!ctx || heartbeatRate <= 0) return;

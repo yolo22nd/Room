@@ -24,7 +24,7 @@ function wizardModel(color) {
 
 export class CoopLevel extends ChamberLevel {
   constructor(engine, state, peer) {
-    super(engine, state, { w: 12, d: 9, cols: 4, rows: 3, fog: 0x0a0810 });
+    super(engine, state, { w: 12, d: 9, cols: 4, rows: 3, fog: 0x0a0810, ambience: 'title' });
     this.peer = peer;
     this.host = peer.role === 'host';
     this.chapterId = 'coop';

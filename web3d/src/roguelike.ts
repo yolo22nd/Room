@@ -47,6 +47,7 @@ export class RogueRoom extends ChamberLevel {
     const mod = run.depth >= 3 ? ['none', 'none', 'dark', 'cramped', 'stormy'][Math.floor(rnd() * 5)] : 'none';
     const size = mod === 'cramped' ? 6 : big ? 12 : 9, grid = mod === 'cramped' ? 2 : big ? 4 : 3;
     super(engine, state, {
+      ambience: 'endless',
       gravity: kind === 'upside' ? 1 : -1,
       w: size, d: size, cols: grid, rows: grid,
       fog: 0x06050a,

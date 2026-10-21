@@ -54,7 +54,7 @@ import { Cat, catAdopted, catSettings, saveCat } from './cat';
 import { SHOP, PAY, coins, owned, earn, buy, equip, equipped, onCoins } from './shop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
-import { setIntensity, setSurface } from './audio';
+import { setIntensity, setSurface, setLowHealth } from './audio';
 import { CATALOG } from './models';
 import { knows } from './spells';
 
@@ -337,6 +337,7 @@ const engine: any = {
     this.mode = 'play';
     ui.showHUD(true);
     this.setLevel(new HellLevel(this, st));
+    playAmbience('rush');
     ui.toast('⚔️ Boss rush', 'Round 1: KRAKEN 2.0');
     if (!input.touch) requestLock();
   },
@@ -349,6 +350,7 @@ const engine: any = {
     const wl = new WitchLevel(this, s);
     this.setLevel(wl);
     wl.phase = 'fight'; wl.refreshHUD();
+    playAmbience('rush');
     ui.setHearts(s.hearts, s.maxHearts);
     ui.toast('⚔️ Round 2', 'The Witch of Ember Hollow (+1 heart)');
   },
@@ -760,7 +762,7 @@ function showTitle() {
   if (engine.peer) { engine.peer.send({ t: 'bye' }); engine.peer.close(); engine.peer = null; }
   engine.mode = 'title'; engine.paused = false;
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
-  setHeartbeat(0);
+  setHeartbeat(0); setLowHealth(0); playAmbience('title');
   if (engine.level) engine.level.deactivate();
   if (demo) demo.deactivate();
   demo = buildDemo(); engine.level = null;
@@ -815,7 +817,7 @@ function showTitle() {
   on('t-endings', () => showEndings());
   on('t-settings', () => showSettings());
   // music starts on first interaction
-  const kick = () => { initAudio(); playAmbience('room'); removeEventListener('pointerdown', kick); };
+  const kick = () => { initAudio(); if (engine.mode === 'title') playAmbience('title'); removeEventListener('pointerdown', kick); };
   addEventListener('pointerdown', kick);
 }
 
@@ -1390,6 +1392,7 @@ function frame() {
         const rate = (engine.level instanceof RoomLevel ? 10 : 16) * (st.mode === 'hard' ? 0.7 : 1) * (st.regen || 1);
         st.mana = st.mode === 'editor' ? st.maxMana : Math.min(st.maxMana, st.mana + rate * dt);
         ui.setMana(st.mode === 'editor' ? null : st.mana, st.maxMana);
+        setLowHealth(st.hearts <= 1 && st.maxHearts > 1 ? 1 : 0);
       }
       player.update(dt);
       engine.level.update(dt);

@@ -23,7 +23,7 @@ export class ChamberLevel {
     this.player = engine.player;
     this.camera = engine.camera;
     this.state = state;
-    this.cfg = { w: 9, d: 9, h: 3.4, cols: 3, rows: 3, gravity: -1, ambience: 'room', fog: 0x05040a, ...cfg };
+    this.cfg = { w: 9, d: 9, h: 3.4, cols: 3, rows: 3, gravity: -1, ambience: 'lesson', fog: 0x05040a, ...cfg };
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.cfg.fog);
     this.scene.fog = new THREE.Fog(this.cfg.fog, 8, 40);
