@@ -243,7 +243,7 @@ export class WitchLevel extends BossLevel {
       }
       case 'cast': {
         w.pos.copy(w.to); w.pos.y = 0.15 + Math.sin(this.time * 6) * 0.05;
-        const dur = (stage === 3 ? 2.0 : 2.8) * (this.hard ? 0.7 : 1);
+        const dur = (stage === 3 ? 2.0 : 2.8) * (this.hard ? 0.8 : 1);
         if (w.t > dur) this.ascend();
         break;
       }
@@ -514,7 +514,7 @@ export class WitchLevel extends BossLevel {
     const inv = [`<b>${this.spell === 'furniture' ? '▶' : ''} 1</b> Furniture`];
     if (s.flags.lemon) inv.push(`<b>${this.spell === 'lemon' ? '▶' : ''} 2</b> 🍋 Lemon`);
     if (knows(s, 'blink')) inv.push(`<b>${this.spell === 'blink' ? '▶' : ''} 3</b> ${SPELLS.blink.icon} Blink`);
-    if (knows(s, 'shrink')) inv.push(`<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Search)' : ''}`);
+    if (knows(s, 'shrink')) inv.push(`<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Shrink button)' : ''}`);
     if (this.shield) inv.push('🧥 <b>Cloak</b> ready');
     if (s.flags.wand) inv.push('🪄 <b>Ember Wand</b>');
     ui.setInventory(inv);

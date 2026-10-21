@@ -758,7 +758,7 @@ export class HellLevel extends BossLevel {
       `📌 Pinned <b>${this.pins}/${this.pinsNeeded}</b>`,
     ];
     if (knows(s, 'blink')) inv.splice(2, 0, `<b>${this.spell === 'blink' ? '▶' : ''} 3</b> ${SPELLS.blink.icon} Blink`);
-    if (knows(s, 'shrink')) inv.splice(3, 0, `<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Search)' : ''}`);
+    if (knows(s, 'shrink')) inv.splice(3, 0, `<b>4</b> ${SPELLS.shrink.icon} Shrink${this.engine.touch ? ' (Shrink button)' : ''}`);
     if (s.shoes !== 'none') inv.push(`👟 <b>${s.shoes}</b>`);
     if (this.shield) inv.push('🧥 <b>Cloak</b> ready');
     if (s.flags.wand) inv.push('🪄 <b>Ember Wand</b>');
