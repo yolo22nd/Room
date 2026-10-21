@@ -63,7 +63,8 @@ export class RogueRoom extends ChamberLevel {
     // keep the start cell (south middle) free
     const startKey = this.cellKey([Math.floor(this.cfg.cols / 2), this.cfg.rows - 1]);
     this.freeCells = cells.filter(c => this.cellKey(c) !== startKey).sort(() => rnd() - 0.5);
-    const n = Math.min(2 + Math.floor(run.depth / 2), kind === 'plates' ? 3 : 4);
+    // deeper rooms keep growing: past room 8 a fifth rune or a fourth plate
+    const n = Math.min(2 + Math.floor(run.depth / 2), (kind === 'plates' ? 3 : 4) + (run.depth >= 8 ? 1 : 0));
     if (kind === 'runes' || kind === 'upside') this.setupRunes(n);
     if (kind === 'hunt') this.setupHunt(Math.min(3 + run.depth, this.freeCells.length - 1, FLOOR().length));
     if (kind === 'plates') this.setupPlates(n);
