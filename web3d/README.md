@@ -82,6 +82,9 @@ pressure plates), upgrades between rooms, one life, a local leaderboard and a da
 **Co-op.** Two players, peer-to-peer over WebRTC with copy-paste invite codes — no server. Solve the Twin Room
 together: match the runes, then both stand on opposite pressure plates.
 
+**Boss rush.** Kraken 2.0 and the witch back to back on one set of hearts, with a leaderboard (unlocks after
+beating the Kraken).
+
 **Photo mode** (V): freeze the game, fly the camera, apply film filters, save a PNG.
 
 **Room editor.** Build your own escape room, hide the key in a piece of furniture, pick an exit door, add a
@@ -112,7 +115,7 @@ B stand/cancel, Start pause; the d-pad and A navigate menus.
 ## Features
 
 - Autosave, with checkpoints at the gate of Hell and at the start of the rematch; Continue from the title screen
-- 47 achievements, stored in the browser
+- 49 achievements, stored in the browser
 - Real physics (Rapier, loaded on first use): junk spells (crate, beach ball, anvil) that stack and tumble;
   furniture that misses in Hell tumbles, gets blasted by slams and can roll into the lava
 - Installable PWA with offline play (production build), gamepad support

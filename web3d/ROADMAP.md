@@ -45,4 +45,10 @@ Decisions (from the planning Q&A):
    - ✅ memory runes: a fifth endless room kind
    - ✅ README screenshots
    - ✅ two more secrets: knock on the void window, a magic word at the command line (47 achievements)
-   - next: keep polishing
+
+## Round 4 (last 12%)
+
+✅ 11. **Boss rush**: Kraken then witch, one set of hearts, leaderboard, two achievements
+12. **New endless room kinds**: lever sequence, mirrored runes, rare treasure room
+13. **New Game+**: remixed Act 1, new witch lines, a robe colour
+14. **Graphics**: lighting and shadows, detailed furniture, boss effects, world dressing

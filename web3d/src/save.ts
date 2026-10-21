@@ -76,6 +76,8 @@ export const ACHIEVEMENTS = [
   { id: 'speedreader', icon: '📚', name: 'Speed Reader', desc: 'Escape the Flooded Library in under two minutes.' },
   { id: 'knock', icon: '🪟', name: 'Hello Out There', desc: 'Knock three times on the window onto the void.' },
   { id: 'xyzzy', icon: '🐚', name: 'Old Magic Word', desc: 'Say a magic word from an older adventure at the command line.' },
+  { id: 'rush', icon: '⚔️', name: 'Encore', desc: 'Clear the boss rush.' },
+  { id: 'rushfast', icon: '⏱️', name: 'No Time for Monologues', desc: 'Clear the boss rush in under three minutes.' },
   { id: 'coop', icon: '👥', name: 'Better Together', desc: 'Escape the twin room in co-op.' },
   { id: 'portrait', icon: '🖼️', name: 'Her Eyes Follow You', desc: 'Stare at the witch\'s portrait in the dark.' },
   { id: 'rpsflawless', icon: '🎯', name: 'Smug No More', desc: 'Beat the PC 3–0.' },

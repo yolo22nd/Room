@@ -42,6 +42,7 @@ import { CoopLevel } from './coop';
 import { runDialogue } from './dialogue';
 import { setVoiceEnabled, voiceAvailable } from './voice';
 import { setIntensity, setSurface } from './audio';
+import { CATALOG } from './models';
 import { knows } from './spells';
 
 const CHAPTERS_KEY = 'room3d.chapters.v1';
@@ -291,6 +292,72 @@ const engine: any = {
     document.getElementById('r-title').onclick = () => { sfx.click(); showTitle(); };
   },
 
+  // ---------------------------------------------------------------- boss rush
+  startRush() {
+    initAudio();
+    ui.closeDialog(true); ui.hideScreen();
+    const st: any = freshRoomState('rush');
+    Object.assign(st, { shoes: 'shoes', lamp: 'hand', lampOn: true, maxMana: 100, mana: 100 });
+    st.flags.lemon = true;
+    Object.keys(CATALOG).filter(t => CATALOG[t].kind === 'floor' && t !== 'pc').forEach((t, i) => { st.placed['r' + i] = { type: t, slot: i }; });
+    this.roomState = st;
+    this.rush = { stage: 'kraken' };
+    this.stats = { time: 0, deaths: 0, conjured: 0, splits: {} };
+    this.mode = 'play';
+    ui.showHUD(true);
+    this.setLevel(new HellLevel(this, st));
+    ui.toast('⚔️ Boss rush', 'Round 1: KRAKEN 2.0');
+    if (!input.touch) requestLock();
+  },
+
+  rushNext() {
+    this.split('Kraken');
+    const s = this.roomState;
+    s.hearts = Math.min(s.maxHearts, s.hearts + 1); s.mana = s.maxMana;
+    this.rush.stage = 'witch';
+    const wl = new WitchLevel(this, s);
+    this.setLevel(wl);
+    wl.phase = 'fight'; wl.refreshHUD();
+    ui.setHearts(s.hearts, s.maxHearts);
+    ui.toast('⚔️ Round 2', 'The Witch of Ember Hollow (+1 heart)');
+  },
+
+  rushDone() {
+    this.split('Witch');
+    this.rush = null;
+    this.mode = 'title';
+    releaseLock(); setHeartbeat(0);
+    ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null);
+    const entry = { time: Math.round(this.stats.time * 10) / 10, hearts: this.roomState.hearts, at: Date.now() };
+    const board = loadRush(); board.push(entry); board.sort((a, b) => a.time - b.time);
+    saveRush(board.slice(0, 10));
+    unlock('rush');
+    if (entry.time < 180) unlock('rushfast');
+    const sp = this.stats.splits;
+    ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Rush cleared!</h1>
+      <div class="sub">two bosses, no breaks</div>
+      <div class="stats">Kraken ...... ${ui.fmtTime(sp.Kraken || 0)}<br>Witch ....... ${ui.fmtTime(entry.time - (sp.Kraken || 0))}<br>Total ....... ${ui.fmtTime(entry.time)}<br>Hearts left . ${'♥'.repeat(entry.hearts)}</div>
+      ${rushBoardHtml(entry.at)}
+      <div class="actions" style="margin-top:18px"><button class="btn primary" id="r-again">Rush again</button><button class="btn" id="r-title">Back to title</button></div></div>`);
+    document.getElementById('r-again').onclick = () => { sfx.click(); this.startRush(); };
+    document.getElementById('r-title').onclick = () => { sfx.click(); showTitle(); };
+  },
+
+  rushOver(why) {
+    const stage = this.rush.stage;
+    this.rush = null;
+    this.mode = 'title';
+    releaseLock(); setHeartbeat(0);
+    ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null);
+    ui.screen(`<div class="title-wrap"><h1 style="font-size:clamp(34px,7vw,60px)">Rush over</h1>
+      <div class="sub">${ui.escapeHtml(why || '')}</div>
+      <div class="stats">Fell to ...... ${stage === 'kraken' ? 'Kraken 2.0' : 'the witch'}<br>Time ........ ${ui.fmtTime(this.stats.time)}</div>
+      ${rushBoardHtml()}
+      <div class="actions" style="margin-top:18px"><button class="btn primary" id="r-again">Try again</button><button class="btn" id="r-title">Back to title</button></div></div>`);
+    document.getElementById('r-again').onclick = () => { sfx.click(); this.startRush(); };
+    document.getElementById('r-title').onclick = () => { sfx.click(); showTitle(); };
+  },
+
   playCutscene(shots) {
     this.cutscene = new Cutscene(camera, shots);
     document.body.classList.add('cutscene');
@@ -343,6 +410,7 @@ const engine: any = {
 
   die(why) {
     if (this.run) { this.runOver(why); return; }
+    if (this.rush) { this.rushOver(why); return; }
     if (this.level instanceof CoopLevel) {
       this.roomState.hearts = this.roomState.maxHearts;
       ui.log('Your partner drags you back to your feet. (Co-op: no game over.)', 'good');
@@ -398,6 +466,7 @@ const engine: any = {
   },
 
   async ending() {
+    if (this.rush) { this.rushNext(); return; }
     this.mode = 'transition';
     releaseLock();
     ui.flash('#ffffff', 1, 2000);
@@ -468,6 +537,7 @@ const engine: any = {
   },
 
   async finale() {
+    if (this.rush) { this.rushDone(); return; }
     this.mode = 'transition';
     releaseLock();
     ui.flash('#ffffff', 0.8, 1500);
@@ -579,7 +649,7 @@ function buildDemo() {
 }
 
 function showTitle() {
-  engine.run = null;
+  engine.run = null; engine.rush = null;
   if (engine.peer) { engine.peer.send({ t: 'bye' }); engine.peer.close(); engine.peer = null; }
   engine.mode = 'title'; engine.paused = false;
   ui.closeDialog(true); ui.showHUD(false); ui.setTimer(null); releaseLock();
@@ -608,6 +678,7 @@ function showTitle() {
         <div class="tile-grid">
           ${tile('t-endless', '♾️', 'Endless')}
           ${tile('t-coop', '👥', 'Co-op')}
+          ${tile('t-rush', '⚔️', 'Boss rush')}
           ${tile('t-editor', '🛠️', 'Editor')}
           ${tile('t-ach', '🏆', 'Awards', `${unlockedCount()}/${ACHIEVEMENTS.length}`)}
           ${tile('t-endings', '🎬', 'Endings', `${seenEndings().length}/${ENDING_IDS.length}`)}
@@ -625,6 +696,7 @@ function showTitle() {
   on('t-campaign', () => showCampaign());
   on('t-endless', () => showEndless());
   on('t-coop', () => showCoop());
+  on('t-rush', () => showRush());
   on('t-lessons', () => ui.dialog({
     title: 'Part 4: The Three Lessons',
     buttons: [...LESSON_ORDER.map((id, i) => ({ label: `${lessonsDone().includes(id) ? '✅' : '▶'} ${LESSONS[id].title}`, disabled: i > 0 && !lessonsDone().includes(LESSON_ORDER[i - 1]), onClick: () => { engine.stats = { time: 0, deaths: 0, conjured: 0, splits: {} }; engine.startLesson(id); } })), { label: 'Back' }],
@@ -832,6 +904,23 @@ function showEnding(kind = 'escape') {
 const RUNS_KEY = 'room3d.runs.v1';
 function loadRuns(): any[] { try { return JSON.parse(localStorage.getItem(RUNS_KEY) || '[]'); } catch (e) { return []; } }
 function saveRuns(b) { try { localStorage.setItem(RUNS_KEY, JSON.stringify(b)); } catch (e) { /* ignore */ } }
+const RUSH_KEY = 'room3d.rush.v1';
+function loadRush(): any[] { try { return JSON.parse(localStorage.getItem(RUSH_KEY) || '[]'); } catch (e) { return []; } }
+function saveRush(b) { try { localStorage.setItem(RUSH_KEY, JSON.stringify(b)); } catch (e) { /* storage full or blocked */ } }
+function rushBoardHtml(mine = 0) {
+  const b = loadRush().slice(0, 8);
+  if (!b.length) return '';
+  return `<table class="splits">${b.map((e, i) => `<tr${e.at === mine ? ' class="mine"' : ''}><td>#${i + 1} ⚔️</td><td>${'♥'.repeat(e.hearts)}</td><td>${ui.fmtTime(e.time)}</td></tr>`).join('')}</table>`;
+}
+function showRush() {
+  const open = chaptersDone().includes('hell');
+  ui.dialog({
+    title: '⚔️ Boss rush',
+    html: `<p>Kraken 2.0, then the witch, back to back. One set of hearts (one comes back between fights), every piece of furniture, and the lemon. Fastest time wins.</p>${open ? '' : '<p class="muted">Beat Kraken 2.0 in the story to unlock the rush.</p>'}${rushBoardHtml()}`,
+    buttons: [{ label: '⚔️ Start the rush', cls: 'primary', disabled: !open, onClick: () => engine.startRush() }, { label: 'Back' }],
+  });
+}
+
 function leaderboardHtml(mine = 0) {
   const b = loadRuns().slice(0, 8);
   if (!b.length) return '';
@@ -1142,10 +1231,10 @@ function frame() {
     if (playing) {
       engine.stats.time += dt;
       const st = engine.roomState;
-      const timed = st && ['hard', 'daily', 'custom', 'rogue'].includes(st.mode);
+      const timed = st && ['hard', 'daily', 'custom', 'rogue', 'rush'].includes(st.mode);
       if (st && st.mode !== 'editor' && (settings.showTimer || timed)) {
         const m = engine.splitMsg && engine.splitMsg.until > engine.stats.time ? engine.splitMsg : null;
-        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : st.mode === 'rogue' ? `room ${engine.run.depth + 1}${engine.run.daily ? ' · daily' : ''}` : '';
+        const label = !st ? '' : st.mode === 'daily' ? 'daily ' + st.seed : st.mode === 'hard' ? 'hard' : st.mode === 'custom' ? st.custom.title : st.mode === 'rogue' ? `room ${engine.run.depth + 1}${engine.run.daily ? ' · daily' : ''}` : st.mode === 'rush' ? 'boss rush' : '';
         ui.setTimer(engine.stats.time, m ? m.text : label, m ? m.cls : '');
       } else ui.setTimer(null);
       if (st) {
